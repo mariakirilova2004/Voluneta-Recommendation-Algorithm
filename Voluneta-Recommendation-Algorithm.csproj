@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="Voluneta.Recommendation.Core\Voluneta.Recommendation.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Voluneta.Recommendation.Core\**" />
+    <Compile Remove="Voluneta.Recommendation.Tests\**" />
+    <Content Remove="Voluneta.Recommendation.Core\**" />
+    <Content Remove="Voluneta.Recommendation.Tests\**" />
+    <EmbeddedResource Remove="Voluneta.Recommendation.Core\**" />
+    <EmbeddedResource Remove="Voluneta.Recommendation.Tests\**" />
+    <None Remove="Voluneta.Recommendation.Core\**" />
+    <None Remove="Voluneta.Recommendation.Tests\**" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Voluneta_Recommendation_Algorithm</RootNamespace>
+  </PropertyGroup>
+
+</Project>

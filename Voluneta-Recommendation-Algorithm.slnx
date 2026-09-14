@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Voluneta-Recommendation-Algorithm.csproj" />
+  <Project Path="Voluneta.Recommendation.Core/Voluneta.Recommendation.Core.csproj" />
+  <Project Path="Voluneta.Recommendation.Tests/Voluneta.Recommendation.Tests.csproj" />
+</Solution>

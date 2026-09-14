@@ -1,0 +1,30 @@
+# Visual Studio / IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Build results
+bin/
+obj/
+out/
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+# Rider / ReSharper
+.idea/
+*.DotSettings.user
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test results
+TestResults/
+*.trx
+
+# Logs
+*.log
