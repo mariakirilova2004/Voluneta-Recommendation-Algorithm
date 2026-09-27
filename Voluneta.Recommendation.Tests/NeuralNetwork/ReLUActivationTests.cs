@@ -18,4 +18,23 @@ public class ReLUActivationTests
         // Assert
         Assert.Equal(resOutputs, outputs);
     }
+
+    [Fact]
+    public void Backward_ShouldReturnCorrectInputs()
+    {
+        // Arrange
+        var relu = new ReLUActivation();
+        double[] inputs = { -1, 0, 1, 2, -3 };
+
+        relu.Forward(inputs);
+
+        double[] dValues = { 1, 1, 1, 1, 1 };
+        double[] resDInputs = { 0, 0, 1, 1, 0 };
+
+        // Act
+        double[] dInputs = relu.Backward(dValues);
+
+        // Assert
+        Assert.Equal(resDInputs, dInputs);
+    }
 }

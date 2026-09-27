@@ -1,11 +1,8 @@
 ﻿using Recommendation.Core.Algorithms.Recommendation.Features;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Voluneta.Recommendation.Tests.NeuralNetwork
 {
-    public class RecommendationFeatureVectorTests
+    public class RecommendationFeatureTests
     {
         [Fact]
         public void Count_ShouldBeEight()
