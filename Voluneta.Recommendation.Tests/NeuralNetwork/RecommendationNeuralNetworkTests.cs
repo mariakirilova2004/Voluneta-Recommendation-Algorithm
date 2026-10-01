@@ -1,10 +1,40 @@
 ﻿using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
 using Voluneta.Recommendation.Core.Models;
+using WeVolunteer.Core.Algorithms.Recommendation;
 
 namespace Voluneta.Recommendation.Tests.NeuralNetwork
 {
     public class RecommendationNeuralNetworkTests
     {
+        private static void CheckWeightGradient(
+            RecommendationNeuralNetwork network, 
+            DenseLayer layer,
+            MeanSquaredErrorLoss loss, 
+            double[] input, 
+            double target,
+            double epsilon = 1e-5)
+        {
+            for (int n = 0; n < layer.NeuronN; n++)
+            {
+                for (int i = 0; i < layer.InputN; i++)
+                {
+                    double originalWeight = layer.Weights[n,i];
+
+                    layer.Weights[n,i] = originalWeight + epsilon;
+                    double lossPlus = loss.Forward(network.Forward(input), target);
+
+                    layer.Weights[n,i] = originalWeight - epsilon;
+                    double lossMinus = loss.Forward(network.Forward(input), target);
+
+                    layer.Weights[n,i] = originalWeight;
+
+                    double gradient = (lossPlus - lossMinus) / (2 * epsilon);
+
+                    Assert.Equal(gradient, layer.DWeights[n, i]);
+                }
+            }
+        }
+
         [Fact]
         public void Training_SingleData()
         {
@@ -103,6 +133,44 @@ namespace Voluneta.Recommendation.Tests.NeuralNetwork
             lossAfter /= training.Count;
 
             Assert.True(lossAfter < lossBefore, $"Loss less. Before: {lossBefore}, After: {lossAfter}");
+        }
+
+        [Fact]
+        public void Backward_Layer_Match()
+        {
+            //Arrange
+            var network = new RecommendationNeuralNetwork(new Random(42));
+            var loss = new MeanSquaredErrorLoss();
+            double[] input = { 0.8, 0.6, 0.7, 0.5, 0.9, 0.4, 0.6, 0.0 };
+            double target = 0.75;
+            double epsilon = 1e-5;
+
+            //Act
+            double predict = network.Forward(input);
+            double lossValue = loss.Backward(predict, target);
+
+            network.Backward(lossValue);
+
+            //original weight
+
+            double gradient = network.Layer1.DWeights[0, 0];
+
+            double original = network.Layer1.Weights[0, 0];
+
+            //Pluss original weight
+            network.Layer1.Weights[0, 0] = original + epsilon;
+            double plusPredict = network.Forward(input);
+            double plusLoss = loss.Forward(plusPredict, target);
+
+            //Minus original weight
+            network.Layer1.Weights[0, 0] = original - epsilon;
+            double minusPredict = network.Forward(input);
+            double minusLoss = loss.Forward(minusPredict, target);
+
+            double res = (plusLoss - minusLoss) / (2 * epsilon);
+
+            //Assert
+            Assert.Equal(res, gradient, 5);
         }
     }
 }

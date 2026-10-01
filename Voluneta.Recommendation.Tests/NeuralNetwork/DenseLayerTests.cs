@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
 using WeVolunteer.Core.Algorithms.Recommendation;
 
 namespace Voluneta.Recommendation.Tests.NeuralNetwork;
@@ -93,5 +95,87 @@ public class DenseLayerTests
         //Assert
         Assert.Equal(0.32, dInputs[0], 6);
         Assert.Equal(0.26, dInputs[1], 6);
+    }
+
+    [Fact]
+    public void Test_Seeding()
+    {
+        //Arrange
+        var layer1 = new DenseLayer(3, 2, new Random(42));
+        var layer2 = new DenseLayer(3, 2, new Random(42));
+
+        //Assert
+        for(int n = 0; n < layer1.NeuronN; n++)
+        {
+            for (int i = 0; i < layer1.InputN; i++)
+            {
+                Assert.Equal(layer1.Weights[n, i], layer2.Weights[n, i]);
+            }
+            Assert.Equal(layer1.Biases[n], layer2.Biases[n]);
+        }
+    }
+
+    [Fact]
+    public void Test_Weight_Gradient_Match()
+    {
+        //Arrange
+        var layer = new DenseLayer(2,1, new Random(42));
+        double[] input = { 0.4, 0.7 };
+        double[] upstreamGradient = { 0.8 };
+
+        double epsilon = 1e-5;
+
+        //Act
+        layer.Forward(input);
+        layer.Backward(upstreamGradient);
+
+        double originalWeight = layer.Weights[0, 0];
+
+        layer.Weights[0, 0] = originalWeight + epsilon;
+
+        double outputPlus = layer.Forward(input)[0];
+        double lossPlus = outputPlus * upstreamGradient[0];
+
+        layer.Weights[0, 0] = originalWeight - epsilon;
+
+        double outputMinus = layer.Forward(input)[0];
+        double lossMinus = outputMinus * upstreamGradient[0];
+
+        double numericalGradient = (lossPlus - lossMinus) / (2 * epsilon);
+
+        //Assert
+        Assert.Equal(numericalGradient, layer.DWeights[0, 0], 5);
+    }
+
+    [Fact]
+    public void Test_Bias_Gradient_Match()
+    {
+        //Arrange
+        var layer = new DenseLayer(2, 1, new Random(42));
+        double[] input = { 0.4, 0.7 };
+        double[] upstreamGradient = { 0.8 };
+
+        double epsilon = 1e-5;
+
+        //Act
+        layer.Forward(input);
+        layer.Backward(upstreamGradient);
+
+        double originalBias = layer.Biases[0];
+
+        layer.Biases[0] = originalBias + epsilon;
+
+        double outputPlus = layer.Forward(input)[0];
+        double lossPlus = outputPlus * upstreamGradient[0];
+
+        layer.Biases[0] = originalBias - epsilon;
+
+        double outputMinus = layer.Forward(input)[0];
+        double lossMinus = outputMinus * upstreamGradient[0];
+
+        double numericalGradient = (lossPlus - lossMinus) / (2 * epsilon);
+
+        //Assert
+        Assert.Equal(numericalGradient, layer.DBiases[0], 5);
     }
 }

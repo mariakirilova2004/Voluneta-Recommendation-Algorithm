@@ -13,6 +13,10 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork
         private readonly DenseLayer outputLayer;
         private readonly SigmoidActivation sigmoid;
 
+        public DenseLayer Layer1 => layer1;
+        public DenseLayer Layer2 => layer2;
+        public DenseLayer OutputLayer => outputLayer;
+
         public RecommendationNeuralNetwork(Random rand)
         {
             layer1 = new DenseLayer(8, 16, rand);
