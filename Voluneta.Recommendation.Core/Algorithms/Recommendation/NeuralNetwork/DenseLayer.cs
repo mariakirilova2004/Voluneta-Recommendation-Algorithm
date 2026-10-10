@@ -39,7 +39,9 @@ namespace WeVolunteer.Core.Algorithms.Recommendation
                 for (int i = 0; i < InputN; i++)
                 {
                     // The aim here is to have values for the weights between -0.01 and 0.01, in this way the values will be small and easy to manage
-                    Weights[n, i] = (rand.NextDouble() * 2 - 1) * 0.01;
+                    double limit = Math.Sqrt(6.0 / inputN);
+
+                    Weights[n, i] = (rand.NextDouble() * 2.0 - 1.0) * limit;
                 }
                 Biases[n] = 0;
             }

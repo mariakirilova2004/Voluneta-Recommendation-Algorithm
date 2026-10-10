@@ -7,10 +7,10 @@ namespace Voluneta.Recommendation.Tests.NeuralNetwork
     public class RecommendationNeuralNetworkTests
     {
         private static void CheckWeightGradient(
-            RecommendationNeuralNetwork network, 
+            RecommendationNeuralNetwork network,
             DenseLayer layer,
-            MeanSquaredErrorLoss loss, 
-            double[] input, 
+            MeanSquaredErrorLoss loss,
+            double[] input,
             double target,
             double epsilon = 1e-5)
         {
@@ -18,20 +18,50 @@ namespace Voluneta.Recommendation.Tests.NeuralNetwork
             {
                 for (int i = 0; i < layer.InputN; i++)
                 {
-                    double originalWeight = layer.Weights[n,i];
+                    double originalWeight = layer.Weights[n, i];
 
-                    layer.Weights[n,i] = originalWeight + epsilon;
+                    layer.Weights[n, i] = originalWeight + epsilon;
                     double lossPlus = loss.Forward(network.Forward(input), target);
 
-                    layer.Weights[n,i] = originalWeight - epsilon;
+                    layer.Weights[n, i] = originalWeight - epsilon;
                     double lossMinus = loss.Forward(network.Forward(input), target);
 
-                    layer.Weights[n,i] = originalWeight;
+                    layer.Weights[n, i] = originalWeight;
 
                     double gradient = (lossPlus - lossMinus) / (2 * epsilon);
 
-                    Assert.Equal(gradient, layer.DWeights[n, i]);
+                    Assert.Equal(gradient, layer.DWeights[n, i], 5);
                 }
+            }
+        }
+
+        private static void CheckBiasGradient(
+            RecommendationNeuralNetwork network,
+            DenseLayer layer,
+            MeanSquaredErrorLoss loss,
+            double[] input,
+            double target,
+            double epsilon = 1e-5)
+        {
+            for (int n = 0; n < layer.NeuronN; n++)
+            {
+                double originalBias = layer.Biases[n];
+                layer.Biases[n] = originalBias + epsilon;
+                double lossPlus = loss.Forward(network.Forward(input), target);
+                layer.Biases[n] = originalBias - epsilon;
+                double lossMinus = loss.Forward(network.Forward(input), target);
+                layer.Biases[n] = originalBias;
+                double gradient = (lossPlus - lossMinus) / (2 * epsilon);
+                double analyticalGradient = layer.DBiases[n];
+
+                Assert.True(
+                    Math.Abs(gradient - analyticalGradient) < 1e-5,
+                    $"Bias {n}: " +
+                    $"Numerical = {gradient}, " +
+                    $"Analytical = {analyticalGradient}, " +
+                    $"Original bias = {originalBias}"
+                );
+                //Assert.Equal(gradient, layer.DBiases[n], 5);
             }
         }
 
@@ -96,7 +126,7 @@ namespace Voluneta.Recommendation.Tests.NeuralNetwork
 
             var sgd = new SGD(learningRate: 0.01);
 
-            var training = new List<RecommendationTraining> { 
+            var training = new List<RecommendationTraining> {
                 new RecommendationTraining(new double[] {1,1,1,1,0.9,0.9,0.8,0.9}, (10-1)/9),
                 new RecommendationTraining(new double[] {0.8,0.7,1,0.9,0.7,0.8,0.6,0.7}, (8-1)/9),
                 new RecommendationTraining(new double[] {0.5,0.4,1.0,0.5,0.4,0.5,0.3,0.4}, (5-1)/9),
@@ -136,41 +166,111 @@ namespace Voluneta.Recommendation.Tests.NeuralNetwork
         }
 
         [Fact]
-        public void Backward_Layer_Match()
+        public void Backward_Layer1_Weight_Gradient()
         {
-            //Arrange
+            // Arrange
             var network = new RecommendationNeuralNetwork(new Random(42));
             var loss = new MeanSquaredErrorLoss();
             double[] input = { 0.8, 0.6, 0.7, 0.5, 0.9, 0.4, 0.6, 0.0 };
             double target = 0.75;
-            double epsilon = 1e-5;
 
-            //Act
+            // Act
             double predict = network.Forward(input);
             double lossValue = loss.Backward(predict, target);
-
             network.Backward(lossValue);
 
-            //original weight
+            // Assert
+            CheckWeightGradient(network, network.Layer1, loss, input, target);
+        }
 
-            double gradient = network.Layer1.DWeights[0, 0];
+        [Fact]
+        public void Backward_Layer1_Bias_Gradient()
+        {
+            // Arrange
+            var network = new RecommendationNeuralNetwork(new Random(42));
+            var loss = new MeanSquaredErrorLoss();
+            double[] input = { 0.8, 0.6, 0.7, 0.5, 0.9, 0.4, 0.6, 0.0 };
+            double target = 0.75;
 
-            double original = network.Layer1.Weights[0, 0];
+            // Act
+            double predict = network.Forward(input);
+            double lossValue = loss.Backward(predict, target);
+            network.Backward(lossValue);
 
-            //Pluss original weight
-            network.Layer1.Weights[0, 0] = original + epsilon;
-            double plusPredict = network.Forward(input);
-            double plusLoss = loss.Forward(plusPredict, target);
+            // Assert
+            CheckBiasGradient(network, network.Layer1, loss, input, target);
+        }
 
-            //Minus original weight
-            network.Layer1.Weights[0, 0] = original - epsilon;
-            double minusPredict = network.Forward(input);
-            double minusLoss = loss.Forward(minusPredict, target);
+        [Fact]
+        public void Backward_Layer2_Weight_Gradient()
+        {
+            // Arrange
+            var network = new RecommendationNeuralNetwork(new Random(42));
+            var loss = new MeanSquaredErrorLoss();
+            double[] input = { 0.8, 0.6, 0.7, 0.5, 0.9, 0.4, 0.6, 0.0 };
+            double target = 0.75;
 
-            double res = (plusLoss - minusLoss) / (2 * epsilon);
+            // Act
+            double predict = network.Forward(input);
+            double lossValue = loss.Backward(predict, target);
+            network.Backward(lossValue);
 
-            //Assert
-            Assert.Equal(res, gradient, 5);
+            // Assert
+            CheckWeightGradient(network, network.Layer2, loss, input, target);
+        }
+
+        [Fact]
+        public void Backward_Layer2_Bias_Gradient()
+        {
+            // Arrange
+            var network = new RecommendationNeuralNetwork(new Random(42));
+            var loss = new MeanSquaredErrorLoss();
+            double[] input = { 0.8, 0.6, 0.7, 0.5, 0.9, 0.4, 0.6, 0.0 };
+            double target = 0.75;
+
+            // Act
+            double predict = network.Forward(input);
+            double lossValue = loss.Backward(predict, target);
+            network.Backward(lossValue);
+
+            // Assert
+            CheckBiasGradient(network, network.Layer2, loss, input, target, 1e-6);
+        }
+
+        [Fact]
+        public void Backward_Output_Bias_Gradient()
+        {
+            // Arrange
+            var network = new RecommendationNeuralNetwork(new Random(42));
+            var loss = new MeanSquaredErrorLoss();
+            double[] input = { 0.8, 0.6, 0.7, 0.5, 0.9, 0.4, 0.6, 0.0 };
+            double target = 0.75;
+
+            // Act
+            double predict = network.Forward(input);
+            double lossValue = loss.Backward(predict, target);
+            network.Backward(lossValue);
+
+            // Assert
+            CheckBiasGradient(network, network.OutputLayer, loss, input, target);
+        }
+
+        [Fact]
+        public void Backward_Output_Weight_Gradient()
+        {
+            // Arrange
+            var network = new RecommendationNeuralNetwork(new Random(42));
+            var loss = new MeanSquaredErrorLoss();
+            double[] input = { 0.8, 0.6, 0.7, 0.5, 0.9, 0.4, 0.6, 0.0 };
+            double target = 0.75;
+
+            // Act
+            double predict = network.Forward(input);
+            double lossValue = loss.Backward(predict, target);
+            network.Backward(lossValue);
+
+            // Assert
+            CheckWeightGradient(network, network.OutputLayer, loss, input, target);
         }
     }
 }

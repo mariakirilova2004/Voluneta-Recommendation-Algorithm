@@ -64,5 +64,61 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork
             sgd.Update(layer2);
             sgd.Update(outputLayer);
         }
+
+        public NetworkSnapshot GetSnapshot()
+        {
+            var layers  = new[] {layer1, layer2, outputLayer };
+
+            var weights = new List<double>();
+            var biases = new List<double>();
+
+            foreach (var layer in layers)
+            {
+                for (int i = 0; i < layer.NeuronN; i++)
+                {
+                    for (int j = 0; j < layer.InputN; j++)
+                    {
+                        weights.Add(layer.Weights[i, j]);
+                    }
+                    biases.Add(layer.Biases[i]);
+                }
+            }
+
+            return new NetworkSnapshot(weights.ToArray(), biases.ToArray());
+        }
+
+        public void RestoreFromSnapshot(NetworkSnapshot snapshot)
+        {
+            if (snapshot == null)
+            {
+                throw new ArgumentNullException(nameof(snapshot));
+            }
+
+            var layers = new[] { layer1, layer2, outputLayer };
+
+            int expectedWeights = layers.Sum(layer => layer.NeuronN * layer.InputN);
+            int expectedBiases = layers.Sum(layer => layer.NeuronN);
+
+            if (snapshot.Weights.Length != expectedWeights || snapshot.Biases.Length != expectedBiases)
+            {
+                throw new ArgumentException("Snapshot dimensions do not match the network.");
+            }
+
+            int weightIndex = 0;
+            int biasIndex = 0;
+
+            foreach (var layer in layers)
+            {
+                for (int n = 0; n < layer.NeuronN; n++)
+                {
+                    for (int i = 0; i < layer.InputN; i++)
+                    {
+                        layer.Weights[n, i] = snapshot.Weights[weightIndex++];
+                    }
+
+                    layer.Biases[n] = snapshot.Biases[biasIndex++];
+                }
+            }
+        }
     }
 }
