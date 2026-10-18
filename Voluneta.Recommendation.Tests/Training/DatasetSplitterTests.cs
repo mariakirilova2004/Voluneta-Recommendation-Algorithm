@@ -1,7 +1,7 @@
 ﻿using Recommendation.Core.Algorithms.Recommendation.Features;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
 
-namespace Voluneta.Recommendation.Tests.NeuralNetwork
+namespace Voluneta.Recommendation.Tests.Training
 {
     public class DatasetSplitterTests
     {

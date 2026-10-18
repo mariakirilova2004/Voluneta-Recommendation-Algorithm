@@ -34,14 +34,7 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.Training
                     ColleagueMatch = random.NextDouble()
                 };
 
-                double score = 0.25 * features.InterestMatch +
-                               0.10 * features.CategoryHistoryMatch +
-                               0.15 * features.DayAvailableMatch +
-                               0.10 * features.TimeAvailableMatch +
-                               0.10 * features.LocationMatch +
-                               0.15 * features.SkillMatch +
-                               0.10 * features.ExperienceMatch +
-                               0.05 * features.ColleagueMatch;
+                double score = SyntheticTargetGenerator.CalculateScore(features);
 
                 double noiseValue = (random.NextDouble() * 2 - 1) * noise;
 

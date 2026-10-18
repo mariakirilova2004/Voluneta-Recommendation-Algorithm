@@ -1,7 +1,8 @@
+using Recommendation.Core.Algorithms.Recommendation.Features;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
 
-namespace Voluneta.Recommendation.Tests.NeuralNetwork
+namespace Voluneta.Recommendation.Tests.Training
 {
     // tests for the neural network trainer, just making sure training actually works and loss values make sense
     public class NeuralNetworkTrainerTests
@@ -130,6 +131,131 @@ namespace Voluneta.Recommendation.Tests.NeuralNetwork
             Console.WriteLine("Best epoch: " + history.BestEpoch);
             Console.WriteLine("Best validation loss: " + history.BestValidationLoss.ToString("F8"));
             Console.WriteLine("Restored validation loss: " + restoredValidationLoss.ToString("F8"));
+        }
+
+        [Fact]
+        public void Train_StoppingDisabled()
+        {
+            // Arrange
+            var dataset = SyntheticDatasetGenerator.Generate(100, seed: 42);
+
+            var split = DatasetSplitter.Split(dataset, seed: 42);
+
+            var network = new RecommendationNeuralNetwork(new Random(42));
+
+            var trainer = new NeuralNetworkTrainer(network, 0.01);
+
+            var options = new TrainingOptions
+            {
+                MaxEpochs = 100,
+                UseEarlyStopping = false,
+            };
+
+            // Act
+            // this time we disable early stopping
+            var history = trainer.Train(split, options);
+
+            // Assert
+            // it should have run exactly 100 epochs since early stopping is disabled
+            Assert.Equal(100, history.Epoch.Count);
+            Assert.False(history.StoppedEarly);
+            Assert.Equal(100, history.Epoch.Last().EpochNumber);
+        }
+
+        [Fact]
+        public void Train_NotImprove()
+        {
+            // Arrange
+            var dataset = SyntheticDatasetGenerator.Generate(100, seed: 42);
+
+            var split = DatasetSplitter.Split(dataset, seed: 42);
+
+            var network = new RecommendationNeuralNetwork(new Random(42));
+
+            var trainer = new NeuralNetworkTrainer(network, 0.01);
+
+            var options = new TrainingOptions
+            {
+                MaxEpochs = 100,
+                UseEarlyStopping = true,
+                Patience = 5,
+                MinDelta = 1
+            };
+
+            // Act
+            var history = trainer.Train(split, options);
+
+            // Assert
+            // it should have stopped early due to lack of improvement in validation loss
+            Assert.True(history.StoppedEarly);
+            Assert.Equal(6, history.Epoch.Count);
+            Assert.InRange(history.BestEpoch, 1, 6);
+        }
+
+        [Fact]
+        public void Train_WhenEarlyStoppingRestoresBestWeights_MatchesBestEpoch()
+        {
+            // Arrange
+            var features = new RecommendationFeatureVector
+            {
+                InterestMatch = 0.5,
+                CategoryHistoryMatch = 0.5,
+                DayAvailableMatch = 0.5,
+                TimeAvailableMatch = 0.5,
+                LocationMatch = 0.5,
+                SkillMatch = 0.5,
+                ExperienceMatch = 0.5,
+                ColleagueMatch = 0.5
+            };
+
+            var trainingSample = new TrainingSample(features, rating: 10); // Target = 1.0
+            var validationSample = new TrainingSample(features, rating: 1); // Target = 0.0
+
+            var split = new DatasetSplit(
+                training: new List<TrainingSample> { trainingSample },
+                testing: new List<TrainingSample>(),
+                validation: new List<TrainingSample> { validationSample });
+
+            var networkA = new RecommendationNeuralNetwork(new Random(42));
+            var networkB = new RecommendationNeuralNetwork(new Random(42));
+
+            var trainerA = new NeuralNetworkTrainer(networkA, 0.01);
+            var trainerB = new NeuralNetworkTrainer(networkB, 0.01);
+
+            var optionsB = new TrainingOptions
+            {
+                MaxEpochs = 100,
+                UseEarlyStopping = true,
+                Patience = 3,
+                MinDelta = 0
+            };
+
+            // Act
+            var historyB = trainerB.Train(split, optionsB);
+
+            // Assert
+            Assert.True(historyB.StoppedEarly);
+            Assert.True(historyB.BestEpoch < historyB.Epoch.Count);
+
+            // Arrange
+            var optionsA = new TrainingOptions
+            {
+                MaxEpochs = historyB.BestEpoch,
+                UseEarlyStopping = false
+            };
+
+            // Act
+            trainerA.Train(split, optionsA);
+
+            var expected = networkA.GetSnapshot();
+            var actual = networkB.GetSnapshot();
+
+            // Assert
+            Assert.Equal(264, expected.Weights.Length);
+            Assert.Equal(25, expected.Biases.Length);
+
+            Assert.Equal(expected.Weights, actual.Weights); 
+            Assert.Equal(expected.Biases, actual.Biases);
         }
     }
 }

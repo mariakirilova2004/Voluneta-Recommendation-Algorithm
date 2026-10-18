@@ -17,26 +17,34 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.Training
 
         public TrainingHistory Train(DatasetSplit dataset, int epochs = 100, int patience = 10, double minDelta = 0.00001)
         {
-            ArgumentNullException.ThrowIfNull(dataset, nameof(dataset));
+            return Train(dataset, new TrainingOptions{ MaxEpochs = epochs, UseEarlyStopping = true, Patience = patience, MinDelta = minDelta });
+        }
 
-            if (epochs <= 0)
+        public TrainingHistory Train(DatasetSplit dataset, TrainingOptions options)
+        {
+            ArgumentNullException.ThrowIfNull(dataset);
+            ArgumentNullException.ThrowIfNull(options);
+
+            if (options.MaxEpochs <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(epochs));
+                throw new ArgumentOutOfRangeException(nameof(options.MaxEpochs));
             }
 
-            if (patience <= 0)
+            if (options.Patience <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(patience));
+                throw new ArgumentOutOfRangeException(nameof(options.Patience));
             }
 
-            if (!double.IsFinite(minDelta) || minDelta < 0)
+            if (!double.IsFinite(options.MinDelta) || options.MinDelta < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(minDelta));
+                throw new ArgumentOutOfRangeException(nameof(options.MinDelta));
             }
 
             if (dataset.Training.Count == 0 || dataset.Validation.Count == 0)
             {
-                throw new ArgumentException("Training and validation datasets cannot be empty.", nameof(dataset));
+                throw new ArgumentException(
+                    "Training and validation datasets cannot be empty.",
+                    nameof(dataset));
             }
 
             var history = new TrainingHistory();
@@ -48,62 +56,75 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.Training
 
             int epochsWithoutImprovement = 0;
 
-            for (int epoch = 1; epoch <= epochs; epoch++)
+            for (int epoch = 1; epoch <= options.MaxEpochs; epoch++)
             {
                 foreach (var sample in dataset.Training)
                 {
                     // Forward pass
                     double prediction = _network.Forward(sample.Features);
-                    
-                    // Compute loss
-                    double gradient = _loss.Backward(prediction, sample.Target);
-                    
-                    // Backward pass
+
+                    // Compute loss gradient
+                    double gradient = _loss.Backward(
+                        prediction,
+                        sample.Target);
+
+                    // Backpropagation
                     _network.Backward(gradient);
 
                     // Update weights
                     _network.Update(_optimizer);
                 }
 
-                // Evaluate on validation set
+                // Evaluate training and validation datasets
                 double trainingLoss = Evaluate(dataset.Training);
                 double validationLoss = Evaluate(dataset.Validation);
 
-                if (!double.IsFinite(trainingLoss) || !double.IsFinite(validationLoss))
+                if (!double.IsFinite(trainingLoss) ||
+                    !double.IsFinite(validationLoss))
                 {
-                    throw new InvalidOperationException("Training or validation loss is not finite.");
+                    throw new InvalidOperationException(
+                        "Training or validation loss is not finite.");
                 }
-                
+
                 history.Add(epoch, trainingLoss, validationLoss);
 
-                if (validationLoss < bestValidationLoss - minDelta)
+                // Track the absolute best validation result
+                if (validationLoss < bestValidationLoss)
                 {
                     bestValidationLoss = validationLoss;
-                    bestSnap = _network.GetSnapshot();
-                    
+
                     history.BestEpoch = epoch;
-                    history.BestValidationLoss = bestValidationLoss;
+                    history.BestValidationLoss = validationLoss;
+
+                    if (options.UseEarlyStopping)
+                    {
+                        bestSnap = _network.GetSnapshot();
+                    }
                 }
 
-                if (referenceLoss - validationLoss > minDelta)
+                // Early stopping is optional
+                if (options.UseEarlyStopping)
                 {
-                    referenceLoss = validationLoss;
-                    epochsWithoutImprovement = 0;
-                }
+                    if (referenceLoss - validationLoss > options.MinDelta)
+                    {
+                        referenceLoss = validationLoss;
+                        epochsWithoutImprovement = 0;
+                    }
+                    else
+                    {
+                        epochsWithoutImprovement++;
+                    }
 
-                else
-                {
-                    epochsWithoutImprovement++;
-                }
-
-                if (epochsWithoutImprovement >= patience)
-                {
-                    history.StoppedEarly = true;
-                    break;
+                    if (epochsWithoutImprovement >= options.Patience)
+                    {
+                        history.StoppedEarly = true;
+                        break;
+                    }
                 }
             }
 
-            if (bestSnap != null)
+            // Restore the best model only when early stopping is enabled
+            if (options.UseEarlyStopping && bestSnap != null)
             {
                 _network.RestoreFromSnapshot(bestSnap);
             }

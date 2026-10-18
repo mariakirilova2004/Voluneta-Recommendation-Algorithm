@@ -1,6 +1,6 @@
 ﻿using Recommendation.Core.Algorithms.Recommendation.Features;
 
-namespace Voluneta.Recommendation.Tests.NeuralNetwork
+namespace Voluneta.Recommendation.Tests.Features
 {
     public class RecommendationFeatureTests
     {
