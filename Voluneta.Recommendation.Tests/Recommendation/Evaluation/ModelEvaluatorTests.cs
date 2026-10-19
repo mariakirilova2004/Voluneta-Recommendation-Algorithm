@@ -2,7 +2,7 @@
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Evaluation;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
 
-namespace Voluneta.Recommendation.Tests.Evaluation
+namespace Voluneta.Recommendation.Tests.Recommendation.Evaluation
 {
     public class ModelEvaluatorTests
     {

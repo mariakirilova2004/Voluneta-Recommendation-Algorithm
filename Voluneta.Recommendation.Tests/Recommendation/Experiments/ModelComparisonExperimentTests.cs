@@ -1,7 +1,7 @@
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Evaluation;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Experiments;
 
-namespace Voluneta.Recommendation.Tests.Experiments
+namespace Voluneta.Recommendation.Tests.Recommendation.Experiments
 {
     public class ModelComparisonExperimentTests
     {

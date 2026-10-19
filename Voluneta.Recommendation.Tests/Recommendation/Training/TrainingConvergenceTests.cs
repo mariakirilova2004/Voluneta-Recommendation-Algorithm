@@ -2,7 +2,7 @@ using Voluneta.Recommendation.Core.Algorithms.Recommendation.Evaluation;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
 
-namespace Voluneta.Recommendation.Tests.Training
+namespace Voluneta.Recommendation.Tests.Recommendation.Training
 {
     public class TrainingConvergenceTests
     {

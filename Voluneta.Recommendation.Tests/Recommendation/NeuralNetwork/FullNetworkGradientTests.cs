@@ -1,7 +1,7 @@
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
 using WeVolunteer.Core.Algorithms.Recommendation;
 
-namespace Voluneta.Recommendation.Tests.NeuralNetwork
+namespace Voluneta.Recommendation.Tests.Recommendation.NeuralNetwork
 {
     // These tests check that the gradients our network calculates by hand (backpropagation)
     // are basically the same as the gradients we get if we just nudge each weight a tiny bit

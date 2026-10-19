@@ -1,6 +1,6 @@
 ﻿using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
 
-namespace Voluneta.Recommendation.Tests.NeuralNetwork
+namespace Voluneta.Recommendation.Tests.Recommendation.NeuralNetwork
 {
     public class MeanSquaredErrorLossTests
     {

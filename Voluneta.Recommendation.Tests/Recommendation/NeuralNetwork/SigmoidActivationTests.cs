@@ -1,4 +1,4 @@
-﻿namespace Voluneta.Recommendation.Tests.NeuralNetwork
+﻿namespace Voluneta.Recommendation.Tests.Recommendation.NeuralNetwork
 {
     public class SigmoidActivationTests
     {
@@ -6,7 +6,7 @@
         public void Forward_ShouldReturnCorrectOutput()
         {
             // Arrange
-            var activation = new Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork.SigmoidActivation();
+            var activation = new Core.Algorithms.Recommendation.NeuralNetwork.SigmoidActivation();
             double[] inputs = { -1.0, 0.0, 1.0 };
             
             // Act
@@ -23,7 +23,7 @@
         public void Backward_ShouldReturnCorrectGradients()
         {
             // Arrange
-            var activation = new Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork.SigmoidActivation();
+            var activation = new Core.Algorithms.Recommendation.NeuralNetwork.SigmoidActivation();
             double[] inputs = {-1, 0, 1};
             activation.Forward(inputs);
             double[] dValues = {1, 1, 1};

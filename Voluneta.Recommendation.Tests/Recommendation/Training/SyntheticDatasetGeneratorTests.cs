@@ -1,6 +1,6 @@
 ﻿using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
 
-namespace Voluneta.Recommendation.Tests.Training
+namespace Voluneta.Recommendation.Tests.Recommendation.Training
 {
     public class SyntheticDatasetGeneratorTests
     {

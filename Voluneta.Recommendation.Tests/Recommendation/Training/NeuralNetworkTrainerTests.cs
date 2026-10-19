@@ -2,7 +2,7 @@ using Recommendation.Core.Algorithms.Recommendation.Features;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
 
-namespace Voluneta.Recommendation.Tests.Training
+namespace Voluneta.Recommendation.Tests.Recommendation.Training
 {
     // tests for the neural network trainer, just making sure training actually works and loss values make sense
     public class NeuralNetworkTrainerTests

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Evaluation;
 
-namespace Voluneta.Recommendation.Tests.Evaluation
+namespace Voluneta.Recommendation.Tests.Recommendation.Evaluation
 {
     public class RegressionMetricsTests
     {

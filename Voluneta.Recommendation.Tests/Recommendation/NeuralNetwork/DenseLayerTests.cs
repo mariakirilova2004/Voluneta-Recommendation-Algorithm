@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
 using WeVolunteer.Core.Algorithms.Recommendation;
 
-namespace Voluneta.Recommendation.Tests.NeuralNetwork;
+namespace Voluneta.Recommendation.Tests.Recommendation.NeuralNetwork;
 
 public class DenseLayerTests
 {

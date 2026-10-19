@@ -2,7 +2,7 @@
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Baselines;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
 
-namespace Voluneta.Recommendation.Tests.Baselines
+namespace Voluneta.Recommendation.Tests.Recommendation.Baselines
 {
     public class LinearScoreBaselineTests
     {
