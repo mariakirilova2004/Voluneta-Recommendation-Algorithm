@@ -8,12 +8,12 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.Training
         {
             if(count <= 0)
             {
-                throw new ArgumentOutOfRangeException("Count must be positive", nameof(count));
+                throw new ArgumentOutOfRangeException(nameof(count), "Count must be positive");
             }
 
             if(!double.IsFinite(noise) || noise < 0 || noise > 1)
             {
-                throw new ArgumentOutOfRangeException("Noise must be between 0 and 1", nameof(noise));
+                throw new ArgumentOutOfRangeException(nameof(noise), "Noise must be between 0 and 1");
             }
 
             TrainingDataset dataset = new TrainingDataset();
@@ -24,14 +24,21 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.Training
             {
                 var features = new RecommendationFeatureVector
                 {
-                    InterestMatch = random.NextDouble(),
-                    CategoryHistoryMatch = random.NextDouble(),
-                    DayAvailableMatch = GenerateAvailabilityValue(random),
-                    TimeAvailableMatch = GenerateAvailabilityValue(random),
-                    LocationMatch = random.NextDouble(),
-                    SkillMatch = random.NextDouble(),
-                    ExperienceMatch = random.NextDouble(),
-                    ColleagueMatch = random.NextDouble()
+                    InterestMatch = GenerateBinaryMatch(random),
+
+                    CategoryHistoryMatch = GenerateHistoryMatch(random),
+
+                    DayAvailableMatch = GenerateBinaryMatch(random),
+
+                    TimeAvailableMatch = GenerateBinaryMatch(random),
+
+                    LocationMatch = GenerateLocationMatch(random),
+
+                    SkillMatch = GenerateSkillMatch(random),
+
+                    ExperienceMatch = GenerateExperienceMatch(random),
+
+                    ColleagueMatch = GenerateColleagueMatch(random)
                 };
 
                 double score = SyntheticTargetGenerator.CalculateScore(features);
@@ -49,7 +56,45 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.Training
             return dataset;
         }
 
-        private static double GenerateAvailabilityValue(Random random)
+        private static double GenerateBinaryMatch(Random random)
+        {
+            return random.Next(2);
+        }
+
+        private static double GenerateHistoryMatch(Random random)
+        {
+            int totalCompleted = random.Next(1, 11);
+
+            int matchingCompleted =
+                random.Next(0, totalCompleted + 1);
+
+            return (double)matchingCompleted / totalCompleted;
+        }
+
+        private static double GenerateLocationMatch(Random random)
+        {
+            double distanceKm =
+                random.NextDouble() * 100.0;
+
+            return Math.Exp(-distanceKm / 20.0);
+        }
+
+        private static double GenerateSkillMatch(Random random)
+        {
+            int requiredSkills = random.Next(0, 6);
+
+            if (requiredSkills == 0)
+            {
+                return 1.0;
+            }
+
+            int matchedSkills =
+                random.Next(0, requiredSkills + 1);
+
+            return (double)matchedSkills / requiredSkills;
+        }
+
+        private static double GenerateExperienceMatch(Random random)
         {
             return random.Next(3) switch
             {
@@ -57,6 +102,22 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.Training
                 1 => 0.5,
                 _ => 1.0
             };
-        }   
+        }
+
+        private static double GenerateColleagueMatch(Random random)
+        {
+            int otherParticipants =
+                random.Next(0, 11);
+
+            if (otherParticipants == 0)
+            {
+                return 0.0;
+            }
+
+            int colleagues =
+                random.Next(0, otherParticipants + 1);
+
+            return (double)colleagues / otherParticipants;
+        }
     }
 }
