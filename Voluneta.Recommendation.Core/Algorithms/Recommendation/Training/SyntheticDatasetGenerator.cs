@@ -26,8 +26,8 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.Training
                 {
                     InterestMatch = random.NextDouble(),
                     CategoryHistoryMatch = random.NextDouble(),
-                    DayAvailableMatch = random.NextDouble(),
-                    TimeAvailableMatch = random.NextDouble(),
+                    DayAvailableMatch = GenerateAvailabilityValue(random),
+                    TimeAvailableMatch = GenerateAvailabilityValue(random),
                     LocationMatch = random.NextDouble(),
                     SkillMatch = random.NextDouble(),
                     ExperienceMatch = random.NextDouble(),
@@ -48,5 +48,15 @@ namespace Voluneta.Recommendation.Core.Algorithms.Recommendation.Training
 
             return dataset;
         }
+
+        private static double GenerateAvailabilityValue(Random random)
+        {
+            return random.Next(3) switch
+            {
+                0 => 0.0,
+                1 => 0.5,
+                _ => 1.0
+            };
+        }   
     }
 }
