@@ -1,1 +1,86 @@
-﻿Console.WriteLine("Hello, World!");
+﻿using Recommendation.Core.Algorithms.Recommendation.Features;
+using Voluneta.Recommendation.Core.Algorithms.Allocation.Integration;
+using Voluneta.Recommendation.Core.Algorithms.Allocation.Models;
+using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
+using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
+
+// Predict using the saved model
+if (args.Length > 0 && args[0] == "predict")
+{
+    string modelPath = Path.GetFullPath(args.Length > 1 ? args[1] : "ModelArtifacts/recommendation-model.json");
+
+    // Load the trained model
+    string predictJson = File.ReadAllText(modelPath);
+    var predictSnapshot = NetworkSnapshotSerializer.FromJson(predictJson);
+    var predictNetwork = new RecommendationNeuralNetwork(new Random(42));
+    predictNetwork.RestoreFromSnapshot(predictSnapshot);
+
+    var pipeline = new RecommendationPipelineService(predictNetwork);
+
+    // Sample volunteer-cause pairs
+    VolunteerCauseInput[] inputs =
+    [
+        new("Maria", "Animals", new RecommendationFeatureInput { VolunteerInterests = "Animals", CategoryName = "Animals", DifficultyLevel = 0 }, true),
+        new("Maria", "Environment", new RecommendationFeatureInput { VolunteerInterests = "Animals", CategoryName = "Environment", DifficultyLevel = 0 }, true),
+        new("Ivan", "Animals", new RecommendationFeatureInput { VolunteerInterests = "Environment", CategoryName = "Animals", DifficultyLevel = 0 }, true),
+        new("Ivan", "Environment", new RecommendationFeatureInput { VolunteerInterests = "Environment", CategoryName = "Environment", DifficultyLevel = 0 }, true)
+    ];
+
+    CauseCapacity[] capacities = [new("Animals", 1), new("Environment", 1)];
+
+    // Generate recommendations
+    var results = pipeline.Generate(inputs, capacities, 0.0);
+
+    foreach (var group in results.GroupBy(r => r.VolunteerId).OrderBy(g => g.Key))
+    {
+        Console.WriteLine($"\nRecommendations for {group.Key}:");
+
+        foreach (var r in group.OrderBy(r => r.Rank))
+            Console.WriteLine($"{r.Rank}. {r.CauseId} | Score: {r.CompatibilityScore:F4} | Priority: {r.IsPriority}");
+    }
+
+    Console.WriteLine($"\nModel loaded from: {modelPath}");
+    return;
+}
+
+// Generate the dataset
+var dataset = SyntheticDatasetGenerator.Generate(1000, seed: 42);
+var split = DatasetSplitter.Split(dataset, seed: 42);
+
+// Train the network
+var network = new RecommendationNeuralNetwork(new Random(42));
+var trainer = new NeuralNetworkTrainer(network, learningRate: 0.01);
+var history = trainer.Train(split, epochs: 100);
+
+// Save the trained model
+string filePath = Path.GetFullPath(args.Length > 0 ? args[0] : "ModelArtifacts/recommendation-model.json");
+
+Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+string json = NetworkSnapshotSerializer.ToJson(network.GetSnapshot());
+File.WriteAllText(filePath, json);
+
+// Load the saved model
+string savedJson = File.ReadAllText(filePath);
+var snapshot = NetworkSnapshotSerializer.FromJson(savedJson);
+
+var loadedNetwork = new RecommendationNeuralNetwork(new Random(123));
+loadedNetwork.RestoreFromSnapshot(snapshot);
+
+// Compare predictions
+double[] sample = split.Testing[0].Features;
+double original = network.Forward(sample);
+double restored = loadedNetwork.Forward(sample);
+
+if (Math.Abs(original - restored) > 1e-12)
+    throw new Exception("The restored model gives a different prediction.");
+
+double testLoss = trainer.Evaluate(split.Testing);
+
+Console.WriteLine($"Epochs: {history.Epoch.Count}");
+Console.WriteLine($"Best epoch: {history.BestEpoch}");
+Console.WriteLine($"Validation loss: {history.BestValidationLoss:F6}");
+Console.WriteLine($"Test loss: {testLoss:F6}");
+Console.WriteLine($"Original prediction: {original:F6}");
+Console.WriteLine($"Restored prediction: {restored:F6}");
+Console.WriteLine($"Model saved to: {filePath}");
