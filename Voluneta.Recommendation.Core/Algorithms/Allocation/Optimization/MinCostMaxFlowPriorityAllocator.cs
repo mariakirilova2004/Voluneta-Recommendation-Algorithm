@@ -1,12 +1,12 @@
-﻿using Voluneta.Recommendation.Core.Algorithms.Allocation.Graph;
+using Voluneta.Recommendation.Core.Algorithms.Allocation.Graph;
 using Voluneta.Recommendation.Core.Algorithms.Allocation.Models;
 using Voluneta.Recommendation.Core.Algorithms.Allocation.PathFinding;
 
 namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Optimization
 {
-    public sealed class MinCostMaxFlowAllocator
+    public sealed class MinCostMaxFlowPriorityAllocator
     {
-        public AllocationResult Allocate(IEnumerable<AllocationCandidate> candidates,
+        public RecommendationPriorityResult CalculatePriorities(IEnumerable<RecommendationCandidate> candidates,
             IEnumerable<CauseCapacity> capacities, double minimumScore = 0.50)
         {
             ArgumentNullException.ThrowIfNull(candidates);
@@ -23,10 +23,10 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Optimization
                 if (string.IsNullOrWhiteSpace(cause.CauseId))
                     throw new ArgumentException("Invalid cause ID.");
 
-                if (cause.AvailablePlaces < 0)
+                if (cause.RemainingPlaces < 0)
                     throw new ArgumentOutOfRangeException(nameof(capacities));
 
-                if (!places.TryAdd(cause.CauseId, cause.AvailablePlaces))
+                if (!places.TryAdd(cause.CauseId, cause.RemainingPlaces))
                     throw new ArgumentException("Duplicate cause.");
             }
 
@@ -39,7 +39,7 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Optimization
                 if (string.IsNullOrWhiteSpace(candidate.VolunteerId) || string.IsNullOrWhiteSpace(candidate.CauseId))
                     throw new ArgumentException("Invalid candidate ID.");
 
-                if (!double.IsFinite(candidate.Score) || candidate.Score < 0 || candidate.Score > 1)
+                if (!double.IsFinite(candidate.CompatibilityScore) || candidate.CompatibilityScore < 0 || candidate.CompatibilityScore > 1)
                     throw new ArgumentOutOfRangeException(nameof(candidates));
 
                 if (!places.ContainsKey(candidate.CauseId))
@@ -49,15 +49,15 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Optimization
                     throw new ArgumentException("Duplicate candidate.");
             }
 
-            // Only keep valid matches with available places
+            // Only keep valid matches with remaining places
             var valid = candidateList
-                .Where(c => c.IsEligible && c.Score >= minimumScore && places[c.CauseId] > 0)
+                .Where(c => c.IsEligible && c.CompatibilityScore >= minimumScore && places[c.CauseId] > 0)
                 .OrderBy(c => c.VolunteerId, StringComparer.Ordinal)
                 .ThenBy(c => c.CauseId, StringComparer.Ordinal)
                 .ToList();
 
             if (valid.Count == 0)
-                return new AllocationResult(Array.Empty<AllocationAssignment>());
+                return new RecommendationPriorityResult(Array.Empty<PriorityRecommendation>());
 
             var volunteers = valid.Select(c => c.VolunteerId).Distinct(StringComparer.Ordinal).ToArray();
             var causes = places.Where(c => c.Value > 0).Select(c => c.Key).OrderBy(c => c, StringComparer.Ordinal).ToArray();
@@ -80,7 +80,7 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Optimization
                 graph.AddEdge(source, volunteerNodes[volunteer], 1, 0);
 
             // Volunteer to cause edges
-            var candidateEdges = new List<(AllocationCandidate Candidate, int From, int EdgeIndex)>();
+            var candidateEdges = new List<(RecommendationCandidate Candidate, int From, int EdgeIndex)>();
 
             foreach (var candidate in valid)
             {
@@ -88,7 +88,7 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Optimization
                 int to = causeNodes[candidate.CauseId];
                 int edgeIndex = graph.GetEdges(from).Count;
 
-                graph.AddEdge(from, to, 1, 1 - candidate.Score);
+                graph.AddEdge(from, to, 1, 1 - candidate.CompatibilityScore);
                 candidateEdges.Add((candidate, from, edgeIndex));
             }
 
@@ -106,13 +106,13 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Optimization
                     graph.Augment(step.From, step.EdgeIndex, 1);
             }
 
-            // Read the final assignments from the graph
-            var assignments = candidateEdges
+            // Read the final priorities from the graph
+            var priorities = candidateEdges
                 .Where(e => graph.GetEdges(e.From)[e.EdgeIndex].ResidualCapacity == 0)
-                .Select(e => new AllocationAssignment(e.Candidate.VolunteerId, e.Candidate.CauseId, e.Candidate.Score))
+                .Select(e => new PriorityRecommendation(e.Candidate.VolunteerId, e.Candidate.CauseId, e.Candidate.CompatibilityScore))
                 .ToList();
 
-            return new AllocationResult(assignments.AsReadOnly());
+            return new RecommendationPriorityResult(priorities.AsReadOnly());
         }
     }
 }

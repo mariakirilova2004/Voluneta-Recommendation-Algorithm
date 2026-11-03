@@ -1,15 +1,15 @@
 ﻿namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Models
 {
-    // How many volunteers a cause can still take.
+    // How many places a cause currently has remaining
     public class CauseCapacity
     {
         public string CauseId { get; set; }
-        public int AvailablePlaces { get; set; }
+        public int RemainingPlaces { get; set; }
 
-        public CauseCapacity(string causeId, int availablePlaces)
+        public CauseCapacity(string causeId, int remainingPlaces)
         {
             CauseId = causeId;
-            AvailablePlaces = availablePlaces;
+            RemainingPlaces = remainingPlaces;
         }
     }
 }

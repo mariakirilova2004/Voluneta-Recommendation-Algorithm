@@ -1,11 +1,11 @@
-﻿using Voluneta.Recommendation.Core.Algorithms.Allocation.Models;
+using Voluneta.Recommendation.Core.Algorithms.Allocation.Models;
 
 namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Baselines
 {
-    // Simple baseline allocator: just picks the best scoring pairs first, one cause per volunteer, until capacities run out. Not optimal, but good enough as a comparison.
-    public class GreedyAllocator
+    // Simple baseline: just picks the best scoring pairs first, one priority recommendation per volunteer, until capacities run out. Not optimal, but good enough as a comparison.
+    public class GreedyPriorityAllocator
     {
-        public AllocationResult Allocate(IEnumerable<AllocationCandidate> candidates, IEnumerable<CauseCapacity> capacities, double minimumScore = 0.50)
+        public RecommendationPriorityResult CalculatePriorities(IEnumerable<RecommendationCandidate> candidates, IEnumerable<CauseCapacity> capacities, double minimumScore = 0.50)
         {
             ArgumentNullException.ThrowIfNull(candidates);
             ArgumentNullException.ThrowIfNull(capacities);
@@ -25,9 +25,9 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Baselines
                     throw new ArgumentException("Invalid cause ID.");
                 }
 
-                if (cause.AvailablePlaces < 0)
+                if (cause.RemainingPlaces < 0)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(capacities), "Available places cannot be negative.");
+                    throw new ArgumentOutOfRangeException(nameof(capacities), "Remaining places cannot be negative.");
                 }
 
                 if (remainingPlaces.ContainsKey(cause.CauseId))
@@ -35,11 +35,11 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Baselines
                     throw new ArgumentException("Duplicate cause capacity.");
                 }
 
-                remainingPlaces.Add(cause.CauseId, cause.AvailablePlaces);
+                remainingPlaces.Add(cause.CauseId, cause.RemainingPlaces);
             }
 
             // Step 2: Validate candidate data.
-            var candidateList = new List<AllocationCandidate>(candidates);
+            var candidateList = new List<RecommendationCandidate>(candidates);
             var seenPairs = new HashSet<(string, string)>();
 
             foreach (var candidate in candidateList)
@@ -49,7 +49,7 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Baselines
                     throw new ArgumentException("Invalid candidate ID.");
                 }
 
-                if (!double.IsFinite(candidate.Score) || candidate.Score < 0 || candidate.Score > 1)
+                if (!double.IsFinite(candidate.CompatibilityScore) || candidate.CompatibilityScore < 0 || candidate.CompatibilityScore > 1)
                 {
                     throw new ArgumentOutOfRangeException(nameof(candidates), "Scores must be between 0 and 1.");
                 }
@@ -68,10 +68,10 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Baselines
             }
 
             // Step 3: Keep only eligible candidates that pass the score bar.
-            var filteredCandidates = new List<AllocationCandidate>();
+            var filteredCandidates = new List<RecommendationCandidate>();
             foreach (var candidate in candidateList)
             {
-                if (candidate.IsEligible && candidate.Score >= minimumScore)
+                if (candidate.IsEligible && candidate.CompatibilityScore >= minimumScore)
                 {
                     filteredCandidates.Add(candidate);
                 }
@@ -81,7 +81,7 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Baselines
             // order is predictable when scores are tied.
             filteredCandidates.Sort((a, b) =>
             {
-                int scoreCompare = b.Score.CompareTo(a.Score);
+                int scoreCompare = b.CompatibilityScore.CompareTo(a.CompatibilityScore);
                 if (scoreCompare != 0)
                 {
                     return scoreCompare;
@@ -96,14 +96,14 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Baselines
                 return string.CompareOrdinal(a.CauseId, b.CauseId);
             });
 
-            // Step 5: Track volunteers and selected assignments.
-            var assignedVolunteers = new HashSet<string>(StringComparer.Ordinal);
-            var assignments = new List<AllocationAssignment>();
+            // Step 5: Track volunteers and selected priorities.
+            var prioritizedVolunteers = new HashSet<string>(StringComparer.Ordinal);
+            var priorities = new List<PriorityRecommendation>();
 
             // Step 6: Greedily select the highest scoring pairs.
             foreach (var candidate in filteredCandidates)
             {
-                if (assignedVolunteers.Contains(candidate.VolunteerId))
+                if (prioritizedVolunteers.Contains(candidate.VolunteerId))
                 {
                     continue;
                 }
@@ -113,14 +113,14 @@ namespace Voluneta.Recommendation.Core.Algorithms.Allocation.Baselines
                     continue;
                 }
 
-                assignments.Add(new AllocationAssignment(candidate.VolunteerId, candidate.CauseId, candidate.Score));
+                priorities.Add(new PriorityRecommendation(candidate.VolunteerId, candidate.CauseId, candidate.CompatibilityScore));
 
-                assignedVolunteers.Add(candidate.VolunteerId);
+                prioritizedVolunteers.Add(candidate.VolunteerId);
                 remainingPlaces[candidate.CauseId] = remainingPlaces[candidate.CauseId] - 1;
             }
 
             // Step 7: Return the result.
-            return new AllocationResult(assignments.AsReadOnly());
+            return new RecommendationPriorityResult(priorities.AsReadOnly());
         }
     }
 }

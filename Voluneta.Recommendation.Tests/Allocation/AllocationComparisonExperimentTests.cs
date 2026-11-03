@@ -19,14 +19,14 @@ namespace Voluneta.Recommendation.Tests.Allocation
         [InlineData(20, 5)]
         [InlineData(50, 10)]
         [InlineData(100, 20)]
-        public void Compare_Algorithms(int volunteerCount, int causeCount)
+        public void CompareAlgorithms(int volunteerCount, int causeCount)
         {
             //Arrange
             var random = new Random(42 + volunteerCount);
             var capacities = Enumerable.Range(0, causeCount)
                 .Select(i => new CauseCapacity($"C{i}", random.Next(1, 5))).ToArray();
 
-            var candidates = new List<AllocationCandidate>();
+            var candidates = new List<RecommendationCandidate>();
 
             for (int i = 0; i < volunteerCount; i++)
             {
@@ -38,32 +38,32 @@ namespace Voluneta.Recommendation.Tests.Allocation
                 }
             }
 
-            var greedy = new GreedyAllocator();
-            var optimal = new MinCostMaxFlowAllocator();
+            var greedy = new GreedyPriorityAllocator();
+            var optimal = new MinCostMaxFlowPriorityAllocator();
 
             //Act
-            var greedyResult = greedy.Allocate(candidates, capacities);
-            var optimalResult = optimal.Allocate(candidates, capacities);
+            var greedyResult = greedy.CalculatePriorities(candidates, capacities);
+            var optimalResult = optimal.CalculatePriorities(candidates, capacities);
 
-            double greedyMs = Measure(() => greedy.Allocate(candidates, capacities));
-            double optimalMs = Measure(() => optimal.Allocate(candidates, capacities));
+            double greedyMs = Measure(() => greedy.CalculatePriorities(candidates, capacities));
+            double optimalMs = Measure(() => optimal.CalculatePriorities(candidates, capacities));
 
             //Assert
-            Assert.True(optimalResult.AllocatedCount >= greedyResult.AllocatedCount);
+            Assert.True(optimalResult.PrioritizedCount >= greedyResult.PrioritizedCount);
 
-            if (optimalResult.AllocatedCount == greedyResult.AllocatedCount)
+            if (optimalResult.PrioritizedCount == greedyResult.PrioritizedCount)
                 Assert.True(optimalResult.TotalScore >= greedyResult.TotalScore - 0.000001);
 
-            Assert.Equal(optimalResult.AllocatedCount,
-                optimalResult.Assignments.Select(a => a.VolunteerId).Distinct().Count());
+            Assert.Equal(optimalResult.PrioritizedCount,
+                optimalResult.Priorities.Select(p => p.VolunteerId).Distinct().Count());
 
             foreach (var cause in capacities)
-                Assert.True(optimalResult.Assignments.Count(a => a.CauseId == cause.CauseId) <= cause.AvailablePlaces);
+                Assert.True(optimalResult.Priorities.Count(p => p.CauseId == cause.CauseId) <= cause.RemainingPlaces);
 
             // Results
             _output.WriteLine($"Volunteers: {volunteerCount}, Causes: {causeCount}, Pairs: {candidates.Count}");
-            _output.WriteLine($"Greedy: {greedyResult.AllocatedCount} assigned, score {greedyResult.TotalScore:F3}, time {greedyMs:F3} ms");
-            _output.WriteLine($"Min-Cost Max-Flow: {optimalResult.AllocatedCount} assigned, score {optimalResult.TotalScore:F3}, time {optimalMs:F3} ms");
+            _output.WriteLine($"Greedy: {greedyResult.PrioritizedCount} prioritized, score {greedyResult.TotalScore:F3}, time {greedyMs:F3} ms");
+            _output.WriteLine($"Min-Cost Max-Flow: {optimalResult.PrioritizedCount} prioritized, score {optimalResult.TotalScore:F3}, time {optimalMs:F3} ms");
         }
 
         private static double Measure(Action action)

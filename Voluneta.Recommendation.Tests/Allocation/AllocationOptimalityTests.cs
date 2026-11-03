@@ -14,11 +14,11 @@ namespace Voluneta.Recommendation.Tests.Allocation
         [InlineData(42)]
         [InlineData(123)]
         [InlineData(2026)]
-        public void Allocate_MatchesBruteForce(int seed)
+        public void MatchesBruteForce(int seed)
         {
             //Arrange
             var random = new Random(seed);
-            var allocator = new MinCostMaxFlowAllocator();
+            var allocator = new MinCostMaxFlowPriorityAllocator();
 
             for (int test = 0; test < 30; test++)
             {
@@ -26,7 +26,7 @@ namespace Voluneta.Recommendation.Tests.Allocation
                                           new("B", random.Next(0, 3)),
                                           new("C", random.Next(0, 3))];
 
-                var candidates = new List<AllocationCandidate>();
+                var candidates = new List<RecommendationCandidate>();
 
                 for (int i = 0; i < 4; i++)
                 {
@@ -40,19 +40,19 @@ namespace Voluneta.Recommendation.Tests.Allocation
 
                 //Act
                 var expected = BruteForce(candidates, capacities);
-                var actual = allocator.Allocate(candidates, capacities);
+                var actual = allocator.CalculatePriorities(candidates, capacities);
 
                 //Assert
-                Assert.Equal(expected.Count, actual.AllocatedCount);
+                Assert.Equal(expected.Count, actual.PrioritizedCount);
                 Assert.Equal(expected.Score, actual.TotalScore, 6);
             }
         }
 
         private static (int Count, double Score) BruteForce(
-            List<AllocationCandidate> candidates, CauseCapacity[] capacities)
+            List<RecommendationCandidate> candidates, CauseCapacity[] capacities)
         {
             var volunteers = candidates.Select(c => c.VolunteerId).Distinct().ToArray();
-            var places = capacities.ToDictionary(c => c.CauseId, c => c.AvailablePlaces);
+            var places = capacities.ToDictionary(c => c.CauseId, c => c.RemainingPlaces);
 
             int bestCount = 0;
             double bestScore = 0;
@@ -69,16 +69,16 @@ namespace Voluneta.Recommendation.Tests.Allocation
                     return;
                 }
 
-                // Leave this volunteer without an assignment
+                // Leave this volunteer without a priority recommendation
                 Search(index + 1, count, score);
 
                 foreach (var candidate in candidates.Where(c =>
-                    c.VolunteerId == volunteers[index] && c.IsEligible && c.Score >= 0.50))
+                    c.VolunteerId == volunteers[index] && c.IsEligible && c.CompatibilityScore >= 0.50))
                 {
                     if (places[candidate.CauseId] == 0) continue;
 
                     places[candidate.CauseId]--;
-                    Search(index + 1, count + 1, score + candidate.Score);
+                    Search(index + 1, count + 1, score + candidate.CompatibilityScore);
                     places[candidate.CauseId]++;
                 }
             }
