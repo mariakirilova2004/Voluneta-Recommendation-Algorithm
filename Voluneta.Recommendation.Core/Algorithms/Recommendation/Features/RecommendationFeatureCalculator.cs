@@ -323,14 +323,58 @@ public static class RecommendationFeatureCalculator
         return Math.Clamp(Math.Exp(-distanceKm / 20.0), 0, 1);
     }
 
-    // compares the skills the user has with the skills the cause requires
+    // Only explicit, unambiguous descriptions count as "no skills required".
+    private static readonly HashSet<string> NoSkillRequirementPhrases =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "none required",
+            "no skills required",
+            "no special skills required",
+            "no specific skills required",
+            "no experience required",
+            "no experience needed",
+            "no prior experience required",
+            "no prior experience needed",
+            "no special skills required. enthusiasm is enough"
+        };
+
+    // Comma-separated skill labels are supported. Free-form instructions must not
+    // be misinterpreted as a reliable list of skill requirements.
+    private static bool IsFreeTextSkillRequirement(string value)
+    {
+        return value.IndexOfAny(new[] { '.', '!', '?', ';', '\r', '\n' }) >= 0
+            || value.StartsWith("Volunteers ", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(" should ", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(" must ", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(" need ", StringComparison.OrdinalIgnoreCase)
+            || value.Contains(" and ", StringComparison.OrdinalIgnoreCase)
+            || value.EndsWith(" required", StringComparison.OrdinalIgnoreCase)
+            || value.EndsWith(" needed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Compares explicitly listed skills without guessing from a volunteer's bio.
     private static double CalculateSkillMatch(RecommendationFeatureInput data)
     {
-        HashSet<string> requiredSkills = ParseToSet(data.RequiredSkills);
-
-        if (requiredSkills.Count == 0 || requiredSkills.Contains("none required"))
+        if (string.IsNullOrWhiteSpace(data.RequiredSkills))
         {
-            return 1;
+            return 1.0;
+        }
+
+        string requirements = data.RequiredSkills.Trim().TrimEnd('.', '!', '?').Trim();
+
+        if (NoSkillRequirementPhrases.Contains(requirements))
+        {
+            return 1.0;
+        }
+
+        HashSet<string> requiredSkills = ParseToSet(requirements);
+
+        // Contradictory requirements such as "None required, First Aid" are unknown,
+        // not proof that every volunteer is qualified.
+        if (requiredSkills.Overlaps(NoSkillRequirementPhrases) ||
+            IsFreeTextSkillRequirement(requirements))
+        {
+            return UNKNOWN_VALUE;
         }
 
         if (string.IsNullOrWhiteSpace(data.UserSkills))
@@ -339,16 +383,7 @@ public static class RecommendationFeatureCalculator
         }
 
         HashSet<string> userSkills = ParseToSet(data.UserSkills);
-
-        int matchingSkillsCount = 0;
-
-        foreach (string skill in requiredSkills)
-        {
-            if (userSkills.Contains(skill))
-            {
-                matchingSkillsCount++;
-            }
-        }
+        int matchingSkillsCount = requiredSkills.Count(userSkills.Contains);
 
         return (double)matchingSkillsCount / requiredSkills.Count;
     }
