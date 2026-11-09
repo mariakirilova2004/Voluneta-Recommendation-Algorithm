@@ -698,5 +698,512 @@ namespace Voluneta.Recommendation.Tests.Recommendation.Features
             // Assert
             Assert.InRange(result.LocationMatch, 0.0, 1.0);
         }
+
+        [Theory]
+        [InlineData("Teaching, First Aid", "Teaching, First Aid", 1.0)]
+        [InlineData("Teaching", "Teaching, First Aid", 0.5)]
+        [InlineData("Cooking", "Teaching, First Aid", 0.0)]
+        [InlineData(null, "Teaching, First Aid", 0.5)]
+        public void SkillMatch_ComparesCommaSeparatedSkills(string? userSkills, string requiredSkills, double expected)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserSkills = userSkills,
+                RequiredSkills = requiredSkills
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(expected, result.SkillMatch);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("None required")]
+        [InlineData("No special skills required")]
+        public void SkillMatch_MissingOrNoSkillsRequired_ReturnsOne(string? requiredSkills)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserSkills = null,
+                RequiredSkills = requiredSkills
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.SkillMatch);
+        }
+
+        [Fact]
+        public void SkillMatch_MissingUserSkills_WithRequiredSkills_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserSkills = null,
+                RequiredSkills = "Teaching, First Aid"
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.SkillMatch);
+        }
+
+        [Theory]
+        [InlineData("Must have reliable transportation and be comfortable around animals.")]
+        [InlineData("Should enjoy working with children and be patient with beginners")]
+        public void SkillMatch_AmbiguousFreeFormRequirements_ReturnsNeutral(string requiredSkills)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserSkills = "Teaching",
+                RequiredSkills = requiredSkills
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.SkillMatch);
+        }
+
+        [Fact]
+        public void SkillMatch_IsCaseInsensitiveAndTrimsWhitespace()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserSkills = "  teaching  ,  FIRST aid  ",
+                RequiredSkills = "  Teaching , First Aid  "
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.SkillMatch);
+        }
+
+        [Fact]
+        public void SkillMatch_DuplicateRequiredSkills_DoNotAffectResult()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserSkills = "Teaching, First Aid",
+                RequiredSkills = "Teaching, Teaching, First Aid, First Aid"
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.SkillMatch);
+        }
+
+        [Fact]
+        public void CategoryHistoryMatch_NullCompletedCauses_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                CompletedCauses = null
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.CategoryHistoryMatch);
+        }
+
+        [Fact]
+        public void CategoryHistoryMatch_EmptyCompletedCauses_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                CompletedCauses = Array.Empty<CompletedCause>()
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.CategoryHistoryMatch);
+        }
+
+        [Fact]
+        public void CategoryHistoryMatch_AllCompletedCausesMatch_ReturnsOne()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 3,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                CompletedCauses = new[] { new CompletedCause(3), new CompletedCause(3) }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.CategoryHistoryMatch);
+        }
+
+        [Fact]
+        public void CategoryHistoryMatch_NoCompletedCausesMatch_ReturnsZero()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 3,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                CompletedCauses = new[] { new CompletedCause(1), new CompletedCause(2) }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.0, result.CategoryHistoryMatch);
+        }
+
+        [Fact]
+        public void CategoryHistoryMatch_PartialMatch_ReturnsRatio()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 3,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                CompletedCauses = new[] { new CompletedCause(3), new CompletedCause(2), new CompletedCause(1), new CompletedCause(3) }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.CategoryHistoryMatch);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void CategoryHistoryMatch_InvalidCategoryId_ReturnsNeutral(int categoryId)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = categoryId,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                CompletedCauses = new[] { new CompletedCause(3), new CompletedCause(3) }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.CategoryHistoryMatch);
+        }
+
+        [Theory]
+        [InlineData(0, null, 1.0)]
+        [InlineData(0, true, 1.0)]
+        [InlineData(0, false, 1.0)]
+        [InlineData(1, true, 1.0)]
+        [InlineData(1, false, 0.5)]
+        [InlineData(1, null, 0.5)]
+        [InlineData(2, true, 1.0)]
+        [InlineData(2, false, 0.0)]
+        [InlineData(2, null, 0.5)]
+        public void ExperienceMatch_AllDifficultyAndExperienceCombinations(int difficultyLevel, bool? hasPreviousExperience, double expected)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = difficultyLevel,
+                HasPreviousExperience = hasPreviousExperience
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(expected, result.ExperienceMatch);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(3)]
+        [InlineData(100)]
+        public void ExperienceMatch_InvalidDifficultyLevel_Throws(int difficultyLevel)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = difficultyLevel,
+                HasPreviousExperience = true
+            };
+
+            // Act + Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => RecommendationFeatureCalculator.Calculate(input));
+        }
+
+        [Fact]
+        public void ColleagueMatch_AllOtherParticipantsAreColleagues_ReturnsOne()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserId = "user-1",
+                CompanyId = 7,
+                RegisteredParticipants = new[]
+                {
+                    new ColleagueParticipant("user-2", 7),
+                    new ColleagueParticipant("user-3", 7)
+                }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.ColleagueMatch);
+        }
+
+        [Fact]
+        public void ColleagueMatch_SomeOtherParticipantsAreColleagues_ReturnsRatio()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserId = "user-1",
+                CompanyId = 7,
+                RegisteredParticipants = new[]
+                {
+                    new ColleagueParticipant("user-2", 7),
+                    new ColleagueParticipant("user-3", 8)
+                }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.ColleagueMatch);
+        }
+
+        [Fact]
+        public void ColleagueMatch_NoOtherParticipantsAreColleagues_ReturnsZero()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserId = "user-1",
+                CompanyId = 7,
+                RegisteredParticipants = new[]
+                {
+                    new ColleagueParticipant("user-2", 8),
+                    new ColleagueParticipant("user-3", 9)
+                }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.0, result.ColleagueMatch);
+        }
+
+        [Fact]
+        public void ColleagueMatch_NoOtherParticipants_ReturnsZero()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserId = "user-1",
+                CompanyId = 7,
+                RegisteredParticipants = Array.Empty<ColleagueParticipant>()
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.0, result.ColleagueMatch);
+        }
+
+        [Fact]
+        public void ColleagueMatch_MissingCompanyId_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserId = "user-1",
+                CompanyId = null,
+                RegisteredParticipants = new[] { new ColleagueParticipant("user-2", 7) }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.ColleagueMatch);
+        }
+
+        [Fact]
+        public void ColleagueMatch_MissingRegisteredParticipants_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserId = "user-1",
+                CompanyId = 7,
+                RegisteredParticipants = null
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.ColleagueMatch);
+        }
+
+        [Fact]
+        public void ColleagueMatch_ExcludesCurrentUser()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserId = "user-1",
+                CompanyId = 7,
+                RegisteredParticipants = new[]
+                {
+                    new ColleagueParticipant("user-1", 7),
+                    new ColleagueParticipant("user-2", 8)
+                }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.0, result.ColleagueMatch);
+        }
+
+        [Fact]
+        public void ColleagueMatch_MissingUserId_DoesNotExcludeAnyone()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserId = null,
+                CompanyId = 7,
+                RegisteredParticipants = new[]
+                {
+                    new ColleagueParticipant("user-2", 7),
+                    new ColleagueParticipant("user-3", 8)
+                }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.ColleagueMatch);
+        }
+
+        [Fact]
+        public void ColleagueMatch_DuplicateParticipantIds_NotCountedTwice()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserId = "user-1",
+                CompanyId = 7,
+                RegisteredParticipants = new[]
+                {
+                    new ColleagueParticipant("user-2", 7),
+                    new ColleagueParticipant("user-2", 7),
+                    new ColleagueParticipant("user-3", 8)
+                }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.ColleagueMatch);
+        }
     }
 }

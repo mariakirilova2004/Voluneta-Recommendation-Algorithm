@@ -131,6 +131,12 @@ public static class RecommendationFeatureCalculator
             return UNKNOWN_VALUE;
         }
 
+        // an invalid/unknown category id (<= 0) is missing information, not a real category to match against, so we can't meaningfully compare it to the completed history
+        if (data.CategoryId <= 0)
+        {
+            return UNKNOWN_VALUE;
+        }
+
         int matchingCount = 0;
 
         foreach (CompletedCause cause in data.CompletedCauses)
@@ -323,12 +329,40 @@ public static class RecommendationFeatureCalculator
         return Math.Clamp(Math.Exp(-distanceKm / 20.0), 0, 1);
     }
 
+    // explicit, exact phrases that mean "no special skills are needed"; matched as a whole
+    // trimmed/case-insensitive string, never as a substring, so prose that merely mentions
+    // these words isn't mistakenly treated as "no skills required"
+    private static readonly HashSet<string> NoSkillsRequiredPhrases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "None required",
+        "No special skills required"
+    };
+
     // compares the skills the user has with the skills the cause requires
     private static double CalculateSkillMatch(RecommendationFeatureInput data)
     {
-        HashSet<string> requiredSkills = ParseToSet(data.RequiredSkills);
+        if (string.IsNullOrWhiteSpace(data.RequiredSkills))
+        {
+            return 1;
+        }
 
-        if (requiredSkills.Count == 0 || requiredSkills.Contains("none required"))
+        string requiredSkillsText = data.RequiredSkills.Trim();
+
+        if (NoSkillsRequiredPhrases.Contains(requiredSkillsText))
+        {
+            return 1;
+        }
+
+        // free-form prose can't reliably be split into discrete skill labels, so we stay
+        // neutral instead of guessing or silently mismatching
+        if (IsAmbiguousFreeFormText(requiredSkillsText))
+        {
+            return UNKNOWN_VALUE;
+        }
+
+        HashSet<string> requiredSkills = ParseToSet(requiredSkillsText);
+
+        if (requiredSkills.Count == 0)
         {
             return 1;
         }
@@ -351,6 +385,23 @@ public static class RecommendationFeatureCalculator
         }
 
         return (double)matchingSkillsCount / requiredSkills.Count;
+    }
+
+    // a simple heuristic for distinguishing a comma-separated skill list ("Teaching, First Aid")
+    // from ambiguous free-form prose ("Must be comfortable around animals."): sentence
+    // punctuation, or several words with no commas at all, both indicate a sentence rather
+    // than a list of discrete, predefined skill labels
+    private static bool IsAmbiguousFreeFormText(string text)
+    {
+        if (text.IndexOfAny(['.', '!', '?']) >= 0)
+        {
+            return true;
+        }
+
+        bool hasComma = text.Contains(',');
+        int wordCount = text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+
+        return !hasComma && wordCount >= 4;
     }
 
     // checks how well the difficulty of the cause matches with how much experience the volunteer has
@@ -386,7 +437,8 @@ public static class RecommendationFeatureCalculator
         return 0;
     }
 
-    // checks how many of the volunteer's colleagues (same company) already signed up for this cause
+    // checks how many of the volunteer's colleagues (same company) already signed up for this cause,
+    // out of all other registered participants
     private static double CalculateColleagueMatch(RecommendationFeatureInput data)
     {
         if (data.CompanyId == null || data.RegisteredParticipants == null)
@@ -394,14 +446,26 @@ public static class RecommendationFeatureCalculator
             return UNKNOWN_VALUE;
         }
 
-        List<ColleagueParticipant> otherParticipants = new List<ColleagueParticipant>();
+        // dedupe by UserId first, so duplicate registrations for the same person never get
+        // counted twice; a missing UserId on the current input just means we can't exclude
+        // anyone by identity, so every registered participant is treated as "other"
+        Dictionary<string, ColleagueParticipant> uniqueParticipants = new Dictionary<string, ColleagueParticipant>();
 
         foreach (ColleagueParticipant participant in data.RegisteredParticipants)
         {
-            if (participant.UserId != data.UserId)
+            uniqueParticipants[participant.UserId] = participant;
+        }
+
+        List<ColleagueParticipant> otherParticipants = new List<ColleagueParticipant>();
+
+        foreach (ColleagueParticipant participant in uniqueParticipants.Values)
+        {
+            if (data.UserId != null && participant.UserId == data.UserId)
             {
-                otherParticipants.Add(participant);
+                continue;
             }
+
+            otherParticipants.Add(participant);
         }
 
         if (otherParticipants.Count == 0)
