@@ -698,5 +698,36 @@ namespace Voluneta.Recommendation.Tests.Recommendation.Features
             // Assert
             Assert.InRange(result.LocationMatch, 0.0, 1.0);
         }
+
+        // Step 11.5: keep skill comparisons deterministic and do not infer skills from bios.
+        [Theory]
+        [InlineData(null, null, 1.0)]
+        [InlineData("Teaching", "", 1.0)]
+        [InlineData(null, "none required", 1.0)]
+        [InlineData(null, "No special skills required.", 1.0)]
+        [InlineData(null, "No special skills required. Enthusiasm is enough!", 1.0)]
+        [InlineData(null, "No experience needed", 1.0)]
+        [InlineData("Teaching, First Aid", "Teaching,First Aid", 1.0)]
+        [InlineData("teaching, FIRST AID", " Teaching , first aid ", 1.0)]
+        [InlineData("Teaching", "Teaching,First Aid", 0.5)]
+        [InlineData("Cooking", "Teaching,First Aid", 0.0)]
+        [InlineData(null, "Teaching,First Aid", 0.5)]
+        [InlineData("Teaching", "None required,Teaching", 0.5)]
+        [InlineData("Teaching", "No special skills required. Volunteers should be enthusiastic!", 0.5)]
+        [InlineData("Teaching", "Volunteers should have first aid training", 0.5)]
+        [InlineData("Teaching", "Teaching and First Aid", 0.5)]
+        public void SkillMatch_HandlesStructuredAndFreeTextRequirements(
+            string? userSkills, string? requiredSkills, double expected)
+        {
+            var input = new RecommendationFeatureInput
+            {
+                UserSkills = userSkills,
+                RequiredSkills = requiredSkills,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0)
+            };
+
+            var features = RecommendationFeatureCalculator.Calculate(input);
+            Assert.Equal(expected, features.SkillMatch, 10);
+        }
     }
 }
