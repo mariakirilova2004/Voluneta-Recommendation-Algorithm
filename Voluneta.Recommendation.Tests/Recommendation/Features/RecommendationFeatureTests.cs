@@ -123,5 +123,580 @@ namespace Voluneta.Recommendation.Tests.Recommendation.Features
             });
             Assert.All(result.ToArray(), x => Assert.InRange(x, 0, 1));
         }
+
+        [Theory]
+        [InlineData("Environment & Nature", "Environmental Work", 1.0)]
+        [InlineData("Animal Welfare", "Animals", 1.0)]
+        [InlineData("Education & Youth", "Social Impact", 1.0)]
+        [InlineData("Community Support", "Social Impact", 1.0)]
+        [InlineData("Health & Elderly Care", "Health Care", 1.0)]
+        [InlineData("Environment & Nature", "Animals", 0.0)]
+        [InlineData("Tourism", "Other", 0.5)]
+        public void InterestMatch_UsesCategoryAliasMapping(string volunteerInterests, string categoryName, double expected)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                VolunteerInterests = volunteerInterests,
+                CategoryName = categoryName,
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(expected, result.InterestMatch);
+        }
+
+        [Fact]
+        public void InterestMatch_MissingVolunteerInterests_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryName = "Animals",
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.InterestMatch);
+        }
+
+        [Fact]
+        public void InterestMatch_IsCaseInsensitive()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                VolunteerInterests = "environment & nature",
+                CategoryName = "ENVIRONMENTAL WORK",
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.InterestMatch);
+        }
+
+        [Fact]
+        public void InterestMatch_IgnoresLeadingAndTrailingWhitespace()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                VolunteerInterests = "  Environment & Nature  ",
+                CategoryName = "  Environmental Work  ",
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.InterestMatch);
+        }
+
+        [Fact]
+        public void InterestMatch_MultipleSelectedInterests_MatchesAlias()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                VolunteerInterests = "Animal Welfare,Education & Youth,Tourism",
+                CategoryName = "Social Impact",
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.InterestMatch);
+        }
+
+        [Fact]
+        public void InterestMatch_DirectCategoryMatchStillWorks()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                VolunteerInterests = "Environment,Education",
+                CategoryName = "Environment",
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.InterestMatch);
+        }
+
+        [Theory]
+        [InlineData("Morning (08:00-12:00)", 9, 1.0)]
+        [InlineData("Afternoon (12:00-17:00)", 14, 1.0)]
+        [InlineData("Evening (17:00+)", 18, 1.0)]
+        [InlineData("Morning (08:00-12:00)", 18, 0.0)]
+        [InlineData("Flexible", 14, 1.0)]
+        [InlineData("Morning", 9, 1.0)]
+        [InlineData("Afternoon", 14, 1.0)]
+        [InlineData("Evening", 9, 0.0)]
+        public void TimeAvailableMatch_MatchesCauseStartPeriod(string preferredTimeOfDay, int causeHour, double expected)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, causeHour, 0, 0),
+                PreferredTimeOfDay = preferredTimeOfDay,
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(expected, result.TimeAvailableMatch);
+        }
+
+        [Fact]
+        public void TimeAvailableMatch_MissingPreference_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 14, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.TimeAvailableMatch);
+        }
+
+        [Fact]
+        public void TimeAvailableMatch_IsCaseInsensitive()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 14, 0, 0),
+                PreferredTimeOfDay = "afternoon (12:00-17:00)",
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.TimeAvailableMatch);
+        }
+
+        [Fact]
+        public void TimeAvailableMatch_IgnoresLeadingAndTrailingWhitespace()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 14, 0, 0),
+                PreferredTimeOfDay = "  Afternoon (12:00-17:00)  ",
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.TimeAvailableMatch);
+        }
+
+        [Theory]
+        [InlineData("Morning (08:00-12:00)", 11, 1.0)]
+        [InlineData("Afternoon (12:00-17:00)", 12, 1.0)]
+        [InlineData("Afternoon (12:00-17:00)", 16, 1.0)]
+        [InlineData("Evening (17:00+)", 17, 1.0)]
+        public void TimeAvailableMatch_BoundaryHours(string preferredTimeOfDay, int causeHour, double expected)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, causeHour, 0, 0),
+                PreferredTimeOfDay = preferredTimeOfDay,
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(expected, result.TimeAvailableMatch);
+        }
+
+        [Fact]
+        public void TimeAvailableMatch_UnrecognizedPreference_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 14, 0, 0),
+                PreferredTimeOfDay = "Whenever",
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.TimeAvailableMatch);
+        }
+
+        [Theory]
+        [InlineData("Monday,Wednesday,Friday", 2026, 10, 14, 1.0)] // Wednesday
+        [InlineData("Monday,Wednesday,Friday", 2026, 10, 13, 0.0)] // Tuesday
+        [InlineData("Saturday,Sunday", 2026, 10, 18, 1.0)] // Sunday
+        [InlineData("Monday", 2026, 10, 12, 1.0)] // Monday
+        [InlineData("monday,WEDNESDAY", 2026, 10, 14, 1.0)] // Wednesday, case insensitive
+        [InlineData("Monday, Wednesday, Friday", 2026, 10, 16, 1.0)] // Friday, with spaces
+        [InlineData(null, 2026, 10, 12, 0.5)] // null availability
+        [InlineData("", 2026, 10, 12, 0.5)] // empty availability
+        [InlineData("   ", 2026, 10, 12, 0.5)] // whitespace-only availability
+        [InlineData("Someday,Nonsense", 2026, 10, 12, 0.5)] // only unrecognized values
+        [InlineData("Mon", 2026, 10, 12, 0.5)] // abbreviated/partial name is not a full match
+        [InlineData("Monday,Nonsense", 2026, 10, 12, 1.0)] // recognized match wins over unrecognized value
+        [InlineData("Tuesday,Nonsense", 2026, 10, 12, 0.5)] // recognized day present but no match, plus unrecognized -> neutral
+        public void DayAvailableMatch_MatchesCauseWeekday(string? daysAvailable, int year, int month, int day, double expected)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                DaysAvailable = daysAvailable,
+                CauseStart = new DateTime(year, month, day, 10, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(expected, result.DayAvailableMatch);
+        }
+
+        private static double CalculateExpectedLocationMatch(double lat1, double lon1, double lat2, double lon2)
+        {
+            double radians = Math.PI / 180.0;
+            double deltaLatRad = (lat2 - lat1) * radians;
+            double deltaLonRad = (lon2 - lon1) * radians;
+
+            double a = Math.Pow(Math.Sin(deltaLatRad / 2), 2) + Math.Cos(lat1 * radians) * Math.Cos(lat2 * radians) * Math.Pow(Math.Sin(deltaLonRad / 2), 2);
+
+            double earthRadiusKm = 6371.0;
+            double distanceKm = earthRadiusKm * 2 * Math.Asin(Math.Sqrt(Math.Clamp(a, 0, 1)));
+
+            return Math.Exp(-distanceKm / 20.0);
+        }
+
+        [Fact]
+        public void LocationMatch_IdenticalCoordinates_ReturnsOne()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = 42.6977,
+                UserLongitude = 23.3219,
+                CauseLatitude = 42.6977,
+                CauseLongitude = 23.3219
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(1.0, result.LocationMatch, 10);
+        }
+
+        [Theory]
+        [InlineData(42.6977, 23.3219, 42.6977, 23.3219)] // Sofia to Sofia
+        [InlineData(42.6977, 23.3219, 42.1354, 24.7453)] // Sofia to Plovdiv
+        [InlineData(0.0, 0.0, 0.0, 1.0)] // one degree of longitude at the equator
+        [InlineData(0.0, 0.0, 1.0, 0.0)] // one degree of latitude
+        public void LocationMatch_MatchesIndependentHaversineCalculation(double userLat, double userLon, double causeLat, double causeLon)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = userLat,
+                UserLongitude = userLon,
+                CauseLatitude = causeLat,
+                CauseLongitude = causeLon
+            };
+
+            double expected = CalculateExpectedLocationMatch(userLat, userLon, causeLat, causeLon);
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(expected, result.LocationMatch, 6);
+        }
+
+        [Fact]
+        public void LocationMatch_IsSymmetricWhenSwappingLocations()
+        {
+            // Arrange
+            var forward = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = 42.6977,
+                UserLongitude = 23.3219,
+                CauseLatitude = 42.1354,
+                CauseLongitude = 24.7453
+            };
+
+            var reversed = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = 42.1354,
+                UserLongitude = 24.7453,
+                CauseLatitude = 42.6977,
+                CauseLongitude = 23.3219
+            };
+
+            // Act
+            var forwardResult = RecommendationFeatureCalculator.Calculate(forward);
+            var reversedResult = RecommendationFeatureCalculator.Calculate(reversed);
+
+            // Assert
+            Assert.Equal(forwardResult.LocationMatch, reversedResult.LocationMatch, 10);
+        }
+
+        [Fact]
+        public void LocationMatch_IncreasingDistance_DecreasesScore()
+        {
+            // Arrange
+            var near = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = 42.6977,
+                UserLongitude = 23.3219,
+                CauseLatitude = 42.70,
+                CauseLongitude = 23.33
+            };
+
+            var far = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = 42.6977,
+                UserLongitude = 23.3219,
+                CauseLatitude = 43.5,
+                CauseLongitude = 24.5
+            };
+
+            // Act
+            var nearResult = RecommendationFeatureCalculator.Calculate(near);
+            var farResult = RecommendationFeatureCalculator.Calculate(far);
+
+            // Assert
+            Assert.True(nearResult.LocationMatch > farResult.LocationMatch);
+        }
+
+        [Fact]
+        public void LocationMatch_MissingUserCoordinates_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                CauseLatitude = 42.6977,
+                CauseLongitude = 23.3219
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.LocationMatch);
+        }
+
+        [Fact]
+        public void LocationMatch_MissingCauseCoordinates_ReturnsNeutral()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = 42.6977,
+                UserLongitude = 23.3219
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(0.5, result.LocationMatch);
+        }
+
+        [Theory]
+        [InlineData(90.1, 0.0, 0.0, 0.0)]
+        [InlineData(-90.1, 0.0, 0.0, 0.0)]
+        [InlineData(0.0, 0.0, 90.1, 0.0)]
+        [InlineData(0.0, 0.0, -90.1, 0.0)]
+        public void LocationMatch_InvalidLatitude_ThrowsArgumentOutOfRangeException(double userLat, double userLon, double causeLat, double causeLon)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = userLat,
+                UserLongitude = userLon,
+                CauseLatitude = causeLat,
+                CauseLongitude = causeLon
+            };
+
+            // Act + Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => RecommendationFeatureCalculator.Calculate(input));
+        }
+
+        [Theory]
+        [InlineData(0.0, 180.1, 0.0, 0.0)]
+        [InlineData(0.0, -180.1, 0.0, 0.0)]
+        [InlineData(0.0, 0.0, 0.0, 180.1)]
+        [InlineData(0.0, 0.0, 0.0, -180.1)]
+        public void LocationMatch_InvalidLongitude_ThrowsArgumentOutOfRangeException(double userLat, double userLon, double causeLat, double causeLon)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = userLat,
+                UserLongitude = userLon,
+                CauseLatitude = causeLat,
+                CauseLongitude = causeLon
+            };
+
+            // Act + Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => RecommendationFeatureCalculator.Calculate(input));
+        }
+
+        [Theory]
+        [InlineData(double.NaN, 0.0, 0.0, 0.0)]
+        [InlineData(0.0, double.NaN, 0.0, 0.0)]
+        [InlineData(0.0, 0.0, double.NaN, 0.0)]
+        [InlineData(0.0, 0.0, 0.0, double.NaN)]
+        [InlineData(double.PositiveInfinity, 0.0, 0.0, 0.0)]
+        [InlineData(double.NegativeInfinity, 0.0, 0.0, 0.0)]
+        [InlineData(0.0, double.PositiveInfinity, 0.0, 0.0)]
+        [InlineData(0.0, double.NegativeInfinity, 0.0, 0.0)]
+        public void LocationMatch_NaNOrInfiniteCoordinates_ThrowsArgumentOutOfRangeException(double userLat, double userLon, double causeLat, double causeLon)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = userLat,
+                UserLongitude = userLon,
+                CauseLatitude = causeLat,
+                CauseLongitude = causeLon
+            };
+
+            // Act + Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => RecommendationFeatureCalculator.Calculate(input));
+        }
+
+        [Theory]
+        [InlineData(90.0, 180.0, -90.0, -180.0)]
+        [InlineData(-90.0, -180.0, 90.0, 180.0)]
+        [InlineData(90.0, 180.0, 90.0, 180.0)]
+        public void LocationMatch_BoundaryCoordinates_AreAccepted(double userLat, double userLon, double causeLat, double causeLon)
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = userLat,
+                UserLongitude = userLon,
+                CauseLatitude = causeLat,
+                CauseLongitude = causeLon
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.InRange(result.LocationMatch, 0.0, 1.0);
+        }
+
+        [Fact]
+        public void LocationMatch_OutputAlwaysWithinZeroToOne()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0,
+                UserLatitude = -33.8688,
+                UserLongitude = 151.2093,
+                CauseLatitude = 51.5074,
+                CauseLongitude = -0.1278
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.InRange(result.LocationMatch, 0.0, 1.0);
+        }
     }
 }

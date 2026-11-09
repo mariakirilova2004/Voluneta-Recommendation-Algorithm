@@ -32,6 +32,15 @@ public static class RecommendationFeatureCalculator
     // when we don't have enough information to know, we just put 0.5 as a "neutral" value
     private const double UNKNOWN_VALUE = 0.5;
 
+    // cause categories can be phrased differently than the matching volunteer interest
+    private static readonly Dictionary<string, string[]> CategoryInterestAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Environmental Work"] = new[] { "Environment & Nature", "Environment" },
+        ["Animals"] = new[] { "Animal Welfare" },
+        ["Social Impact"] = new[] { "Education & Youth", "Community Support", "Education", "Community" },
+        ["Health Care"] = new[] { "Health & Elderly Care" }
+    };
+
     // helper function that takes a string like "a, b, c" and turns it into a set of words, so it is easier to compare later
     private static HashSet<string> ParseToSet(string? text)
     {
@@ -80,7 +89,8 @@ public static class RecommendationFeatureCalculator
         return featureVector;
     }
 
-    // checks if the volunteer's interests contain the category name of the cause
+    // checks if the volunteer's interests contain the category name of the cause,
+    // or one of the known aliases for that category
     private static double CalculateInterestMatch(RecommendationFeatureInput data)
     {
         HashSet<string> interests = ParseToSet(data.VolunteerInterests);
@@ -90,12 +100,27 @@ public static class RecommendationFeatureCalculator
             return UNKNOWN_VALUE;
         }
 
-        if (interests.Contains(data.CategoryName.Trim()))
+        string categoryName = data.CategoryName.Trim();
+
+        if (interests.Contains(categoryName))
         {
             return 1;
         }
 
-        return 0;
+        if (CategoryInterestAliases.TryGetValue(categoryName, out string[]? aliases))
+        {
+            foreach (string alias in aliases)
+            {
+                if (interests.Contains(alias))
+                {
+                    return 1;
+                }
+            }
+
+            return 0;
+        }
+
+        return UNKNOWN_VALUE;
     }
 
     // looks at the causes the user already completed and sees what percentage of them were in the same category
@@ -119,6 +144,12 @@ public static class RecommendationFeatureCalculator
         return (double)matchingCount / data.CompletedCauses.Count;
     }
 
+    // the seven weekday names WeVolunteer actually allows volunteers to select
+    private static readonly HashSet<string> RecognizedWeekdays = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    };
+
     // checks if the day of the week the cause happens on is one of the days the volunteer said they are available
     private static double CalculateDayAvailableMatch(RecommendationFeatureInput data)
     {
@@ -129,13 +160,48 @@ public static class RecommendationFeatureCalculator
             return UNKNOWN_VALUE;
         }
 
-        if (days.Contains(data.CauseStart.DayOfWeek.ToString()))
+        // only keep the recognized weekday names, ignoring any unexpected/garbage values
+        HashSet<string> recognizedDays = new(StringComparer.OrdinalIgnoreCase);
+        bool hasUnrecognizedValue = false;
+
+        foreach (string day in days)
+        {
+            if (RecognizedWeekdays.Contains(day))
+            {
+                recognizedDays.Add(day);
+            }
+            else
+            {
+                hasUnrecognizedValue = true;
+            }
+        }
+
+        if (recognizedDays.Count == 0)
+        {
+            return UNKNOWN_VALUE;
+        }
+
+        if (recognizedDays.Contains(data.CauseStart.DayOfWeek.ToString()))
         {
             return 1;
         }
 
+        // a mix of recognized and unrecognized values is not a clear-cut mismatch, so stay neutral
+        if (hasUnrecognizedValue)
+        {
+            return UNKNOWN_VALUE;
+        }
+
         return 0;
     }
+
+    // WeVolunteer stores the preferred time of day as a descriptive label, e.g.
+    // "Morning (08:00-12:00)", "Afternoon (12:00-17:00)", "Evening (17:00+)" or "Flexible".
+    // We only care about the leading keyword (Morning/Afternoon/Evening/Flexible); the
+    // "(..)" time-range suffix is just a display hint and is ignored when matching.
+    private static readonly string[] MorningLabels = { "Morning" };
+    private static readonly string[] AfternoonLabels = { "Afternoon" };
+    private static readonly string[] EveningLabels = { "Evening" };
 
     // checks if the time of day matches what the volunteer prefers (morning/afternoon/evening or flexible)
     private static double CalculateTimeAvailableMatch(RecommendationFeatureInput data)
@@ -152,10 +218,11 @@ public static class RecommendationFeatureCalculator
             return 1;
         }
 
+        // figure out what part of the day the cause starts in, based on the thesis-defined
+        // boundaries: Morning < 12:00, Afternoon 12:00-16:59, Evening >= 17:00
         int hour = data.CauseStart.Hour;
         string period;
 
-        // figure out what part of the day the cause starts in
         if (hour < 12)
         {
             period = "Morning";
@@ -169,12 +236,50 @@ public static class RecommendationFeatureCalculator
             period = "Evening";
         }
 
-        if (preference.Equals(period, StringComparison.OrdinalIgnoreCase))
+        // labels can carry a trailing time-range, e.g. "Morning (08:00-12:00)", so we only
+        // compare the leading keyword rather than requiring an exact match
+        if (!TryGetTimePeriodKeyword(preference, out string? recognizedPeriod))
         {
-            return 1;
+            // unrecognized, non-empty preference - we can't know whether it matches, so stay neutral
+            return UNKNOWN_VALUE;
         }
 
-        return 0;
+        return recognizedPeriod!.Equals(period, StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+    }
+
+    // extracts the leading Morning/Afternoon/Evening keyword from a preference label like
+    // "Morning (08:00-12:00)", ignoring case and any trailing text
+    private static bool TryGetTimePeriodKeyword(string preference, out string? keyword)
+    {
+        foreach (string label in MorningLabels)
+        {
+            if (preference.StartsWith(label, StringComparison.OrdinalIgnoreCase))
+            {
+                keyword = "Morning";
+                return true;
+            }
+        }
+
+        foreach (string label in AfternoonLabels)
+        {
+            if (preference.StartsWith(label, StringComparison.OrdinalIgnoreCase))
+            {
+                keyword = "Afternoon";
+                return true;
+            }
+        }
+
+        foreach (string label in EveningLabels)
+        {
+            if (preference.StartsWith(label, StringComparison.OrdinalIgnoreCase))
+            {
+                keyword = "Evening";
+                return true;
+            }
+        }
+
+        keyword = null;
+        return false;
     }
 
     // uses the haversine formula to figure out how far the user is from the cause, then turns that distance into a score
@@ -189,6 +294,13 @@ public static class RecommendationFeatureCalculator
         double lon1 = data.UserLongitude.Value;
         double lat2 = data.CauseLatitude.Value;
         double lon2 = data.CauseLongitude.Value;
+
+        // NaN and +/-Infinity must be rejected explicitly: comparisons like "Math.Abs(NaN) > 90"
+        // are always false, so NaN would otherwise silently slip past a plain range check
+        if (!double.IsFinite(lat1) || !double.IsFinite(lon1) || !double.IsFinite(lat2) || !double.IsFinite(lon2))
+        {
+            throw new ArgumentOutOfRangeException(nameof(data), "Geographical coordinates must be finite numbers.");
+        }
 
         if (Math.Abs(lat1) > 90 || Math.Abs(lat2) > 90 || Math.Abs(lon1) > 180 || Math.Abs(lon2) > 180)
         {
@@ -206,8 +318,9 @@ public static class RecommendationFeatureCalculator
         double earthRadiusKm = 6371.0;
         double distanceKm = earthRadiusKm * 2 * Math.Asin(Math.Sqrt(Math.Clamp(a, 0, 1)));
 
-        // closer causes get a higher score, the further away it is, the score drops off exponentially
-        return Math.Exp(-distanceKm / 20.0);
+        // closer causes get a higher score, the further away it is, the score drops off exponentially;
+        // distanceKm is always >= 0 so the result is always within (0,1], clamped defensively for safety
+        return Math.Clamp(Math.Exp(-distanceKm / 20.0), 0, 1);
     }
 
     // compares the skills the user has with the skills the cause requires
