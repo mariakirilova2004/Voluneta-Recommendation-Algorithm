@@ -1,0 +1,55 @@
+@{
+    var title = ViewData["Title"] as string ?? "Recommendations Demo";
+    var activePage = ViewData["ActivePage"] as string ?? "Recommendations";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@title - Voluneta Demo</title>
+
+    <link href="~/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="~/bootstrap/css/bootstrap-icons.css" rel="stylesheet" />
+    <link href="~/bootstrap/css/templatemo-kind-heart-charity.css" rel="stylesheet" />
+    <link href="~/css/site-responsive.css" rel="stylesheet" />
+    <link href="~/css/demo.css" rel="stylesheet" asp-append-version="true" />
+</head>
+<body>
+    <header class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+                <i class="bi bi-heart-fill me-1" style="color: var(--primary-color);"></i>Voluneta
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#demoNavbarNav" aria-controls="demoNavbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="demoNavbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Home" asp-action="Index">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(activePage == "Recommendations" ? "active" : "")" asp-controller="Demo" asp-action="Recommendations">Recommendations Demo</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link @(activePage == "Optimization" ? "active" : "")" asp-controller="Demo" asp-action="Optimization">Optimization Demo</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <main class="container section-padding">
+        @RenderBody()
+    </main>
+
+    <footer class="py-4 text-center" style="background: var(--site-footer-bg-color); color: var(--white-color);">
+        <p class="mb-0" style="font-size: var(--copyright-font-size);">Voluneta Recommendation Algorithm &mdash; Demo</p>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

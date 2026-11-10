@@ -1,0 +1,198 @@
+﻿/* =============================================================
+   WeVolunteer – responsive overrides
+   Applied on top of templatemo-kind-heart-charity.css
+   ============================================================= */
+
+/* ── Navbar ──────────────────────────────────────────────────── */
+
+/* On mobile the collapsed nav stacks items; remove the desktop
+   left-margin utilities so items don't overflow */
+@media (max-width: 991.98px) {
+    .navbar-nav .nav-item.ms-2,
+    .navbar-nav .nav-item.ms-3 {
+        margin-left: 0 !important;
+    }
+
+    /* Dropdowns inside collapsed nav fill the full width */
+    .navbar-nav .dropdown-menu {
+        position: static !important;
+        float: none;
+        width: 100%;
+        min-width: 0;   /* override the desktop min-width   */
+        box-shadow: none;
+        border: none;
+        background: #f8f9fa;
+        padding-left: 1rem;
+        /* reset the end-alignment that causes off-screen rendering   */
+        --bs-position: start;
+        right: auto !important;
+        left: 0 !important;
+    }
+
+    /* Custom-btn in nav becomes a block button on mobile */
+    .navbar-nav .custom-btn.btn {
+        display: block;
+        text-align: center;
+        margin-top: .25rem;
+        border-radius: 6px !important;
+    }
+
+    /* Give the toggler a little breathing room */
+    .navbar-toggler {
+        margin-left: auto;
+    }
+}
+
+/* ── Hero / header sections ──────────────────────────────────── */
+@media (max-width: 767.98px) {
+    .news-detail-header-section {
+        padding: 60px 1rem 40px !important;
+    }
+
+        .news-detail-header-section h1 {
+            font-size: 1.75rem !important;
+        }
+
+    .carousel-caption h1 {
+        font-size: 1.5rem !important;
+    }
+}
+
+/* ── Section padding ─────────────────────────────────────────── */
+@media (max-width: 767.98px) {
+    .section-padding {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+    }
+}
+
+/* ── Cause cards – equal height on all screen sizes ─────────── */
+.custom-block-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.custom-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.custom-block-body {
+    flex: 1;
+}
+
+/* ── Tables ──────────────────────────────────────────────────── */
+/* Ensure every table is scrollable on small screens */
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767.98px) {
+    /* Shrink admin table font so it stays readable when it scrolls */
+    .table th,
+    .table td {
+        font-size: .8rem;
+        padding: .4rem .5rem;
+    }
+}
+
+/* ── Forms ───────────────────────────────────────────────────── */
+@media (max-width: 575.98px) {
+    /* Stack the two-button rows on very small screens */
+    .d-flex.gap-2 > .btn,
+    .d-flex.gap-2 > a.btn {
+        width: 100% !important;
+        flex: none !important;
+    }
+}
+
+/* ── Volunteer / cause forms ─────────────────────────────────── */
+@media (max-width: 767.98px) {
+    .volunteer-form {
+        padding: 1.5rem !important;
+    }
+
+    .volunteer-section {
+        padding-top: 3rem !important;
+        padding-bottom: 3rem !important;
+    }
+}
+
+/* ── Profile / employee detail cards ────────────────────────── */
+@media (max-width: 991.98px) {
+    /* Left summary card sits above the edit forms on mobile */
+    .col-lg-4.col-12 {
+        margin-bottom: 1rem;
+    }
+}
+
+/* ── Organisation card image ─────────────────────────────────── */
+@media (max-width: 575.98px) {
+    .news-image[style*="height:220px"] {
+        height: 160px !important;
+    }
+}
+
+/* ── Import / result pages ───────────────────────────────────── */
+@media (max-width: 575.98px) {
+    /* Summary stat cards stack nicely already via Bootstrap col-12,
+       just ensure the number doesn't clip */
+    .display-6 {
+        font-size: 1.75rem !important;
+    }
+}
+
+/* ── Dropdown menus in the navbar ────────────────────────────── */
+
+/* Ensure dropdown items never overflow their box on any screen size */
+.navbar-nav .dropdown-menu .dropdown-item {
+    white-space: normal;      /* allow wrapping instead of clipping   */
+    word-break: break-word;
+    padding-right: 1.25rem;
+}
+
+/*
+ * The theme CSS (templatemo-kind-heart-charity.css) sets `position: relative`
+ * on hovered dropdown menus at >=992px, which pulls them into normal document
+ * flow.  This makes the panel appear displaced — overlapping the site-header
+ * strip instead of floating below the toggle button.
+ * Override with `position: absolute` to restore correct Bootstrap behaviour.
+ */
+@media (min-width: 992px) {
+    .navbar-nav .dropdown-menu {
+        min-width: 220px;
+    }
+
+    .dropdown:not(#gami-bell-item):hover .dropdown-menu,
+    .dropdown-menu.show {
+        position: absolute !important;
+        margin-top: 0 !important;
+        left: auto !important;
+    }
+}
+
+/* ── Register button – always visible (solid teal fill) ─────── */
+.navbar-nav a.nav-link.custom-btn.btn,
+.navbar-nav a.custom-btn.btn {
+    background-color: var(--primary-color) !important;
+    color: #fff !important;
+    border-color: var(--primary-color) !important;
+    border-radius: var(--border-radius-large) !important;
+    padding: .35rem 1.1rem !important;
+}
+
+    .navbar-nav a.nav-link.custom-btn.btn:hover,
+    .navbar-nav a.custom-btn.btn:hover {
+        background-color: var(--custom-btn-bg-hover-color) !important;
+        border-color: var(--custom-btn-bg-hover-color) !important;
+        color: #fff !important;
+    }
+
+/* ── Employee cards (mobile) ─────────────────────────────────── */
+@media (max-width: 767.98px) {
+    .employee-card-header {
+        background: var(--section-bg-color);
+    }
+}

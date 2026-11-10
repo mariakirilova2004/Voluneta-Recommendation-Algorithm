@@ -1,0 +1,456 @@
+@model OptimizationViewModel
+@{
+    ViewData["Title"] = "Optimization";
+    ViewData["ActivePage"] = "Optimization";
+    Layout = "_DemoLayout";
+}
+
+<section class="demo-hero">
+    <h1 class="mb-2" style="font-weight: var(--font-weight-bold);">Optimization Demo</h1>
+    <p class="demo-intro mb-0">
+        Algorithm 2 demo: compares the Min-Cost Max-Flow (optimal) and Greedy (baseline) priority
+        allocators on the <em>same</em> real Algorithm 1 compatibility scores, cause capacities and
+        minimum match threshold. Results below are recommendation priorities only &mdash; not actual
+        registrations or reserved places.
+    </p>
+</section>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        <strong>Please fix the following before running the optimization:</strong>
+        <ul class="mb-0 mt-2">
+            @foreach (var error in Model.Errors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="demo-select-row mb-4">
+    <h5 class="mb-3 demo-panel-title" style="color: var(--secondary-color);">
+        <i class="bi bi-collection me-2" style="color: var(--primary-color);"></i>Score Scenario
+    </h5>
+    <div class="row g-3">
+        @foreach (var option in Model.ScenarioOptions)
+        {
+            var cardId = $"scenario-{option.Value}";
+            <div class="col-md-6">
+                <form asp-controller="Demo" asp-action="Optimization" method="post" class="h-100">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="scenario" value="@option.Value" />
+                    <input type="hidden" name="minimumScore" value="@((option.IsSelected ? Model.MinimumScore : option.DefaultMinimumScore).ToString(System.Globalization.CultureInfo.InvariantCulture))" />
+                    <button type="submit"
+                            id="@cardId"
+                            class="demo-scenario-card w-100 h-100 text-start@(option.IsSelected ? " active" : "")"
+                            aria-pressed="@option.IsSelected.ToString().ToLowerInvariant()">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <span class="demo-scenario-title">@option.Title</span>
+                            @if (option.IsSelected)
+                            {
+                                <span class="demo-scenario-badge"><i class="bi bi-check-circle-fill me-1"></i>Active</span>
+                            }
+                        </div>
+                        <p class="demo-scenario-description mb-1">@option.Description</p>
+                        <span class="demo-scenario-source">
+                            <i class="bi bi-cpu me-1"></i>@option.ScoreSourceLabel
+                        </span>
+                    </button>
+                </form>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="demo-select-row mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 demo-panel-title" style="color: var(--secondary-color);">
+            <i class="bi bi-sliders me-2" style="color: var(--primary-color);"></i>Scenario Settings
+        </h5>
+
+
+    <p class="demo-comparison-note small mb-3">
+        <i class="bi bi-info-circle me-1"></i>Active score source: <strong>@Model.ScoreSourceLabel</strong>
+    </p>
+
+    <form asp-controller="Demo" asp-action="Optimization" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="scenario" value="@Model.SelectedScenario" />
+
+        <div class="row g-3 mb-3">
+            @foreach (var cause in Model.CauseCapacities)
+            {
+                var inputId = $"capacity-{cause.CauseId}";
+                <div class="col-md-4">
+                    <label for="@inputId" class="demo-field-label">@cause.CauseName &mdash; Remaining Places</label>
+                    <input type="number"
+                           id="@inputId"
+                           name="capacity[@cause.CauseId]"
+                           class="form-control"
+                           min="0"
+                           step="1"
+                           value="@cause.RemainingPlaces"
+                           aria-describedby="@inputId-help" />
+                    <span id="@inputId-help" class="form-text">Default: @cause.DefaultRemainingPlaces &middot; @cause.CategoryName</span>
+                </div>
+            }
+        </div>
+
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="minimumScore" class="demo-field-label">Minimum Match Threshold</label>
+                <input type="number"
+                       id="minimumScore"
+                       name="minimumScore"
+                       class="form-control"
+                       min="0"
+                       max="1"
+                       step="0.01"
+                       value="@Model.MinimumScore.ToString("0.00")"
+                       aria-describedby="minimumScore-help" />
+                <span id="minimumScore-help" class="form-text">Value between 0 and 1. Default: 0.50</span>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="custom-btn btn">
+                    <i class="bi bi-play-fill me-1"></i>Run Optimization
+                </button>
+            </div>
+            <div class="col-auto">
+                <button type="submit" formaction="@Url.Action("ResetOptimization", "Demo", new { scenario = Model.SelectedScenario })" class="custom-border-btn btn">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Scenario
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@if (Model.Result != null)
+{
+    var result = Model.Result;
+    var volunteersById = Model.Volunteers.ToDictionary(v => v.Id, v => v.Name, StringComparer.Ordinal);
+
+    var graphVolunteers = Model.Volunteers
+        .Select((v, i) => new { v.Id, v.Name, Y = 60 + i * 70 })
+        .ToList();
+    var graphCauses = Model.CauseCapacities
+        .Select((c, i) => new { c.CauseId, c.CauseName, Y = 50 + i * 95 })
+        .ToList();
+    var volunteerY = graphVolunteers.ToDictionary(v => v.Id, v => v.Y, StringComparer.Ordinal);
+    var causeY = graphCauses.ToDictionary(c => c.CauseId, c => c.Y, StringComparer.Ordinal);
+    var remainingByCauseId = result.RemainingCapacityByCauseId;
+
+    <section class="demo-comparison mb-4" aria-label="Interactive recommendation graph">
+        <div class="demo-graph-toolbar">
+            <h4 class="mb-0" style="color: var(--secondary-color); font-weight: var(--font-weight-bold);">
+                <i class="bi bi-share me-2" style="color: var(--primary-color);"></i>Recommendation Graph
+            </h4>
+            <div class="demo-graph-toggle" role="group" aria-label="Choose algorithm to highlight">
+                <button type="button" id="graph-toggle-mcmf" class="active" aria-pressed="true" data-algorithm="mcmf">Min-Cost Max-Flow</button>
+                <button type="button" id="graph-toggle-greedy" aria-pressed="false" data-algorithm="greedy">Greedy</button>
+            </div>
+        </div>
+        <p class="demo-comparison-note small mb-3">
+            Edges show recommendation candidates and selected priorities only &mdash; not actual
+            registrations. Switching algorithms updates highlights instantly using the results
+            already computed above.
+        </p>
+        <div class="demo-graph-legend mb-3">
+            <span><span class="legend-swatch" style="background: var(--primary-color); height: 4px;"></span>Selected priority (active algorithm)</span>
+            <span><span class="legend-swatch" style="background: var(--border-color); opacity: .6;"></span>Other candidate</span>
+            <span><span class="legend-swatch" style="background: var(--border-color); opacity: .3; border-top: 2px dashed var(--border-color); background: none;"></span>Below minimum threshold</span>
+        </div>
+
+        <div class="demo-graph-wrap">
+            <div class="demo-graph-svg-wrap">
+                <svg class="demo-graph-svg" id="recommendation-graph" viewBox="0 0 480 320" role="img" aria-label="Volunteer to cause recommendation graph">
+                    <g id="graph-edges">
+                        @foreach (var candidate in result.AllCandidates)
+                        {
+                            var y1 = volunteerY[candidate.VolunteerId];
+                            var y2 = causeY[candidate.CauseId];
+                            var isPriorityMcmf = candidate.IsSelectedByMinCostMaxFlow;
+                            var isPriorityGreedy = candidate.IsSelectedByGreedy;
+                            var thresholdClass = candidate.IsAboveThreshold ? "" : " below-threshold";
+                            <path class="graph-edge@(thresholdClass)"
+                                  d="M 110 @y1 C 250 @y1, 250 @y2, 370 @y2"
+                                  tabindex="0"
+                                  role="button"
+                                  data-volunteer-id="@candidate.VolunteerId"
+                                  data-volunteer-name="@candidate.VolunteerName"
+                                  data-cause-id="@candidate.CauseId"
+                                  data-cause-name="@candidate.CauseName"
+                                  data-score-percent="@candidate.ScorePercent"
+                                  data-above-threshold="@candidate.IsAboveThreshold.ToString().ToLowerInvariant()"
+                                  data-mcmf-priority="@isPriorityMcmf.ToString().ToLowerInvariant()"
+                                  data-greedy-priority="@isPriorityGreedy.ToString().ToLowerInvariant()"
+                                  data-status="@candidate.PriorityStatusLabel"
+                                  aria-label="@candidate.VolunteerName to @candidate.CauseName, @candidate.ScorePercent percent compatibility, @candidate.PriorityStatusLabel" />
+                        }
+                    </g>
+                    <g id="graph-volunteer-nodes">
+                        @foreach (var v in graphVolunteers)
+                        {
+                            @Html.Raw($"<circle class=\"node-circle volunteer\" cx=\"110\" cy=\"{v.Y}\" r=\"7\" />")
+                            @Html.Raw($"<text class=\"node-label\" x=\"20\" y=\"{v.Y + 4}\">{System.Net.WebUtility.HtmlEncode(v.Name)}</text>")
+                        }
+                    </g>
+                    <g id="graph-cause-nodes">
+                        @foreach (var c in graphCauses)
+                        {
+                            var remaining = remainingByCauseId.TryGetValue(c.CauseId, out var r) ? r : 0;
+                            @Html.Raw($"<circle class=\"node-circle cause\" cx=\"370\" cy=\"{c.Y}\" r=\"7\" />")
+                            @Html.Raw($"<text class=\"node-label\" x=\"384\" y=\"{c.Y - 2}\">{System.Net.WebUtility.HtmlEncode(c.CauseName)}</text>")
+                            @Html.Raw($"<text class=\"node-sublabel\" x=\"384\" y=\"{c.Y + 12}\">Remaining: {remaining}</text>")
+                        }
+                    </g>
+                </svg>
+
+                <div class="demo-graph-details" id="graph-details" aria-live="polite">
+                    <span class="text-muted">Hover, focus or select an edge to see volunteer, cause, compatibility score and priority status.</span>
+                </div>
+            </div>
+
+            <div class="demo-graph-connection-cards">
+                @foreach (var candidate in result.AllCandidates)
+                {
+                    var cardThresholdClass = candidate.IsAboveThreshold ? "" : " below-threshold";
+                    <div class="demo-graph-connection-card@(cardThresholdClass)" data-mcmf-priority="@candidate.IsSelectedByMinCostMaxFlow.ToString().ToLowerInvariant()" data-greedy-priority="@candidate.IsSelectedByGreedy.ToString().ToLowerInvariant()">
+                        <div class="d-flex justify-content-between">
+                            <span class="fw-semibold">@candidate.VolunteerName &rarr; @candidate.CauseName</span>
+                            <span class="demo-score-badge">@candidate.ScorePercent%</span>
+                        </div>
+                        <div class="small mt-1" style="color: var(--p-color);">@candidate.PriorityStatusLabel</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="demo-comparison mb-4">
+        <h4 class="mb-2" style="color: var(--secondary-color); font-weight: var(--font-weight-bold);">
+            <i class="bi bi-diagram-3 me-2" style="color: var(--primary-color);"></i>Algorithm Comparison
+        </h4>
+        <p class="demo-comparison-note small mb-3">
+            Both allocators ran on the exact same candidate pool, cause capacities and minimum
+            threshold shown above. These are recommendation priorities only &mdash; no places have
+            been reserved and no registrations were created.
+        </p>
+
+        @if (result.AlgorithmsSelectDifferentPriorities)
+        {
+            <div class="alert alert-info" role="status">
+                <i class="bi bi-info-circle me-1"></i>
+                The two algorithms selected different priorities for at least one volunteer. Differing
+                pairs are highlighted below.
+            </div>
+        }
+
+        @if (Model.MinCostMaxFlowImprovesResult)
+        {
+            <div class="alert alert-success" role="status">
+                <i class="bi bi-graph-up-arrow me-1"></i>
+                Min-Cost Max-Flow improves on Greedy here: @result.MinCostMaxFlow.PrioritizedVolunteerCount
+                priorities totaling @result.MinCostMaxFlow.TotalCompatibilityScore.ToString("0.00") vs
+                @result.Greedy.PrioritizedVolunteerCount priorities totaling @result.Greedy.TotalCompatibilityScore.ToString("0.00")
+                for Greedy.
+            </div>
+        }
+
+        <div class="row g-4">
+            @foreach (var summary in new[] { result.MinCostMaxFlow, result.Greedy })
+            {
+                <div class="col-lg-6">
+                    <div class="demo-comparison-card h-100">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="mb-0">@summary.AlgorithmName</h5>
+                            <span class="demo-score-badge">@summary.PrioritizedVolunteerCount prioritized</span>
+                        </div>
+                        <p class="small mb-3" style="color: var(--p-color);">@summary.Description</p>
+
+                        <div class="d-flex gap-4 mb-3 demo-meta-row">
+                            <div>
+                                <div class="fw-semibold" style="color: var(--secondary-color);">Prioritized Volunteers</div>
+                                <div>@summary.PrioritizedVolunteerCount</div>
+                            </div>
+                            <div>
+                                <div class="fw-semibold" style="color: var(--secondary-color);">Total Compatibility Score</div>
+                                <div>@summary.TotalCompatibilityScore.ToString("0.000")</div>
+                            </div>
+                        </div>
+
+                        @if (summary.SelectedPriorities.Count == 0)
+                        {
+                            <p class="small mb-0">No priorities selected under the current settings.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-unstyled demo-feature-list mb-0">
+                                @foreach (var priority in summary.SelectedPriorities)
+                                {
+                                    var rowClass = priority.DiffersFromOtherAlgorithm ? "demo-change-negative" : "";
+                                    <li class="d-flex justify-content-between align-items-center">
+                                        <span>
+                                            @priority.VolunteerName &rarr; @priority.CauseName
+                                            @if (priority.DiffersFromOtherAlgorithm)
+                                            {
+                                                <i class="bi bi-exclamation-triangle-fill ms-1" title="Differs from the other algorithm" aria-label="Differs from the other algorithm"></i>
+                                            }
+                                        </span>
+                                        <span class="@rowClass">@priority.ScorePercent%</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="demo-comparison mb-4">
+        <h4 class="mb-2" style="color: var(--secondary-color); font-weight: var(--font-weight-bold);">
+            <i class="bi bi-list-check me-2" style="color: var(--primary-color);"></i>Remaining Cause Capacity
+        </h4>
+        <div class="row g-3">
+            @foreach (var cause in Model.CauseCapacities)
+            {
+                <div class="col-md-4">
+                    <div class="demo-comparison-card">
+                        <div class="fw-semibold mb-1">@cause.CauseName</div>
+                        <div class="small" style="color: var(--p-color);">@cause.CategoryName</div>
+                        <div class="demo-meta-row mt-2">
+                            Remaining places: @(result.RemainingCapacityByCauseId.TryGetValue(cause.CauseId, out var remaining) ? remaining : cause.RemainingPlaces)
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="demo-comparison mb-4">
+        <h4 class="mb-2" style="color: var(--secondary-color); font-weight: var(--font-weight-bold);">
+            <i class="bi bi-table me-2" style="color: var(--primary-color);"></i>All Candidate Pairs
+        </h4>
+        <p class="demo-comparison-note small mb-3">
+            Every eligible volunteer-cause pair and its Algorithm 1 compatibility score, used as
+            input by both allocators above. Scores are never recalculated or hardcoded here.
+        </p>
+
+        <div class="demo-comparison-table d-none d-lg-block">
+            <table class="table demo-comparison-grid align-middle">
+                <thead>
+                    <tr>
+                        <th>Volunteer</th>
+                        <th>Cause</th>
+                        <th>Compatibility Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var candidate in result.AllCandidates)
+                    {
+                        <tr>
+                            <td>@candidate.VolunteerName</td>
+                            <td>@candidate.CauseName</td>
+                            <td>@candidate.ScorePercent%</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="demo-comparison-cards d-lg-none">
+            @foreach (var candidate in result.AllCandidates)
+            {
+                <div class="demo-comparison-card mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-semibold">@candidate.VolunteerName &rarr; @candidate.CauseName</span>
+                        <span class="demo-score-badge">@candidate.ScorePercent%</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var graph = document.getElementById('recommendation-graph');
+            if (!graph) {
+                return;
+            }
+
+            var edges = Array.prototype.slice.call(graph.querySelectorAll('.graph-edge'));
+            var details = document.getElementById('graph-details');
+            var mcmfButton = document.getElementById('graph-toggle-mcmf');
+            var greedyButton = document.getElementById('graph-toggle-greedy');
+            var activeAlgorithm = 'mcmf';
+
+            function isPriorityEdge(edge) {
+                return activeAlgorithm === 'mcmf'
+                    ? edge.getAttribute('data-mcmf-priority') === 'true'
+                    : edge.getAttribute('data-greedy-priority') === 'true';
+            }
+
+            function applyHighlights() {
+                edges.forEach(function (edge) {
+                    edge.classList.toggle('priority', isPriorityEdge(edge));
+                });
+            }
+
+            function setActiveAlgorithm(algorithm) {
+                activeAlgorithm = algorithm;
+                var isMcmf = algorithm === 'mcmf';
+                mcmfButton.classList.toggle('active', isMcmf);
+                mcmfButton.setAttribute('aria-pressed', isMcmf ? 'true' : 'false');
+                greedyButton.classList.toggle('active', !isMcmf);
+                greedyButton.setAttribute('aria-pressed', !isMcmf ? 'true' : 'false');
+                applyHighlights();
+            }
+
+            function showDetails(edge) {
+                var volunteerName = edge.getAttribute('data-volunteer-name');
+                var causeName = edge.getAttribute('data-cause-name');
+                var score = edge.getAttribute('data-score-percent');
+                var status = edge.getAttribute('data-status');
+                details.innerHTML =
+                    '<span class="detail-title">' + volunteerName + ' &rarr; ' + causeName + '</span>' +
+                    '<div>Compatibility score: ' + score + '%</div>' +
+                    '<span class="detail-status">' + status + '</span>';
+            }
+
+            function clearDetails() {
+                edges.forEach(function (e) { e.classList.remove('is-active'); });
+                details.innerHTML = '<span class="text-muted">Hover, focus or select an edge to see volunteer, cause, compatibility score and priority status.</span>';
+            }
+
+            edges.forEach(function (edge) {
+                edge.addEventListener('mouseenter', function () { showDetails(edge); });
+                edge.addEventListener('focus', function () { showDetails(edge); });
+                edge.addEventListener('mouseleave', function () {
+                    if (document.activeElement !== edge) {
+                        clearDetails();
+                    }
+                });
+                edge.addEventListener('blur', clearDetails);
+                edge.addEventListener('click', function () {
+                    edges.forEach(function (e) { e.classList.remove('is-active'); });
+                    edge.classList.add('is-active');
+                    showDetails(edge);
+                });
+                edge.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        edge.click();
+                    }
+                });
+            });
+
+            mcmfButton.addEventListener('click', function () { setActiveAlgorithm('mcmf'); });
+            greedyButton.addEventListener('click', function () { setActiveAlgorithm('greedy'); });
+
+            applyHighlights();
+        })();
+    </script>
+}

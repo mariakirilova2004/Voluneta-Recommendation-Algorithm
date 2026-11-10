@@ -1,0 +1,353 @@
+@model RecommendationsViewModel
+@{
+    ViewData["Title"] = "Recommendations";
+    ViewData["ActivePage"] = "Recommendations";
+    Layout = "_DemoLayout";
+}
+
+<section class="demo-hero">
+    <h1 class="mb-2" style="font-weight: var(--font-weight-bold);">Recommendations Demo</h1>
+    <p class="demo-intro mb-0">Algorithm 1 demo: select a volunteer to see their causes ranked by predicted compatibility score. No allocation or capacity limits are applied here.</p>
+</section>
+
+<div class="demo-select-row row g-2 align-items-end mb-4">
+    <form asp-controller="Demo" asp-action="Recommendations" method="post" class="row g-2 align-items-end w-100">
+        @Html.AntiForgeryToken()
+        <div class="col-auto">
+            <label asp-for="SelectedVolunteerId" class="form-label">Volunteer</label>
+            <select name="volunteerId" class="form-select">
+                <option value="">-- Select a volunteer --</option>
+                @foreach (var volunteer in Model.Volunteers)
+                {
+                    if (volunteer.Id == Model.SelectedVolunteerId)
+                    {
+                        <option value="@volunteer.Id" selected="selected">@volunteer.Name</option>
+                    }
+                    else
+                    {
+                        <option value="@volunteer.Id">@volunteer.Name</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" name="calculate" value="true" class="custom-btn btn">Calculate Recommendations</button>
+        </div>
+    </form>
+</div>
+
+@if (Model.Profile != null)
+{
+    var profile = Model.Profile;
+    <div class="demo-select-row mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0 demo-panel-title" style="color: var(--secondary-color);"><i class="bi bi-person-gear me-2" style="color: var(--primary-color);"></i>Edit Profile</h5>
+            @if (profile.IsEdited)
+            {
+                <span class="badge rounded-pill" style="background:var(--primary-color);">Edited</span>
+            }
+        </div>
+
+        <form asp-controller="Demo" asp-action="CalculateWithEditedProfile" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="volunteerId" value="@profile.VolunteerId" />
+
+            <div class="row g-3">
+                <div class="col-md-6 col-lg-4">
+                    <span class="demo-field-label">Interests</span>
+                    <div class="demo-chip-group">
+                        @foreach (var interest in DemoProfileOptions.Interests)
+                        {
+                            var inputId = $"interest-{interest.Replace(' ', '-')}";
+                            <div class="demo-chip">
+                                <input type="checkbox" id="@inputId" name="interests" value="@interest" checked="@(profile.SelectedInterests.Contains(interest) ? "checked" : null)" />
+                                <label for="@inputId">@interest</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
+                    <span class="demo-field-label">Skills</span>
+                    <div class="demo-chip-group">
+                        @foreach (var skill in DemoProfileOptions.Skills)
+                        {
+                            var inputId = $"skill-{skill.Replace(' ', '-')}";
+                            <div class="demo-chip">
+                                <input type="checkbox" id="@inputId" name="skills" value="@skill" checked="@(profile.SelectedSkills.Contains(skill) ? "checked" : null)" />
+                                <label for="@inputId">@skill</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
+                    <span class="demo-field-label">Days Available</span>
+                    <div class="demo-chip-group">
+                        @foreach (var day in DemoProfileOptions.Days)
+                        {
+                            var inputId = $"day-{day}";
+                            <div class="demo-chip">
+                                <input type="checkbox" id="@inputId" name="days" value="@day" checked="@(profile.SelectedDays.Contains(day) ? "checked" : null)" />
+                                <label for="@inputId">@day</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <span class="demo-field-label">Preferred Time of Day</span>
+                    <select name="timeOfDay" class="form-select">
+                        @foreach (var time in DemoProfileOptions.TimesOfDay)
+                        {
+                            if (time == profile.PreferredTimeOfDay)
+                            {
+                                <option value="@time" selected="selected">@time</option>
+                            }
+                            else
+                            {
+                                <option value="@time">@time</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <span class="demo-field-label">Location</span>
+                    <select name="location" class="form-select">
+                        @foreach (var location in DemoProfileOptions.Locations)
+                        {
+                            if (location == profile.SelectedLocation)
+                            {
+                                <option value="@location" selected="selected">@location</option>
+                            }
+                            else
+                            {
+                                <option value="@location">@location</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <span class="demo-field-label">Previous Experience</span>
+                    <select name="experience" class="form-select">
+                        @foreach (var experience in DemoProfileOptions.ExperienceOptions)
+                        {
+                            if (experience == profile.SelectedExperience)
+                            {
+                                <option value="@experience" selected="selected">@experience</option>
+                            }
+                            else
+                            {
+                                <option value="@experience">@experience</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="custom-btn btn">Recalculate with Edited Profile</button>
+                <button type="submit" formaction="@Url.Action("Recommendations", "Demo")" name="calculate" value="true" class="custom-border-btn btn">Reset to Original Profile</button>
+            </div>
+        </form>
+    </div>
+}
+
+@if (Model.Comparison != null && Model.Comparison.Count > 0)
+{
+    string[] comparisonFeatureNames =
+    [
+        "Interest Match", "Category History Match", "Day Available Match", "Time Available Match",
+        "Location Match", "Skill Match", "Experience Match", "Colleague Match"
+    ];
+
+    <section class="demo-comparison mb-4">
+        <h4 class="mb-2" style="color: var(--secondary-color); font-weight: var(--font-weight-bold);">
+            <i class="bi bi-arrow-left-right me-2" style="color: var(--primary-color);"></i>Before vs After Comparison
+        </h4>
+        <p class="demo-comparison-note small mb-3">
+            The Match Score is a model prediction of compatibility, not a participation probability.
+            Score differences reflect the combined effect of all profile changes together; individual
+            feature values below are shown for transparency only, not as proof of what caused the change.
+        </p>
+
+        <div class="demo-comparison-table d-none d-lg-block">
+            <table class="table demo-comparison-grid align-middle">
+                <thead>
+                    <tr>
+                        <th>Cause</th>
+                        <th>Original Score</th>
+                        <th>Edited Score</th>
+                        <th>Change</th>
+                        <th>Original Rank</th>
+                        <th>Edited Rank</th>
+                        <th>Rank Change</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Comparison)
+                    {
+                        var diff = item.ScoreDifferencePercentPoints;
+                        var changeClass = diff switch
+                        {
+                            > 0 => "demo-change-positive",
+                            < 0 => "demo-change-negative",
+                            0 => "demo-change-zero",
+                            _ => ""
+                        };
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@item.CauseName</div>
+                                <div class="small" style="color: var(--p-color);">@item.CategoryName</div>
+                            </td>
+                            <td>@(item.OriginalScore.HasValue ? $"{Math.Round(item.OriginalScore.Value * 100, 1)}%" : "N/A")</td>
+                            <td>@(item.EditedScore.HasValue ? $"{Math.Round(item.EditedScore.Value * 100, 1)}%" : "N/A")</td>
+                            <td class="@changeClass">@item.ScoreChangeLabel</td>
+                            <td>@(item.OriginalRank?.ToString() ?? "N/A")</td>
+                            <td>@(item.EditedRank?.ToString() ?? "N/A")</td>
+                            <td class="@changeClass">@item.RankChangeLabel</td>
+                            <td>
+                                <details>
+                                    <summary>Features</summary>
+                                    <ul class="list-unstyled demo-feature-list mt-2">
+                                        @for (int i = 0; i < comparisonFeatureNames.Length; i++)
+                                        {
+                                            var originalValue = item.OriginalFeatures != null ? item.OriginalFeatures[i].ToString("0.000") : "N/A";
+                                            var editedValue = item.EditedFeatures != null ? item.EditedFeatures[i].ToString("0.000") : "N/A";
+                                            <li><span>@comparisonFeatureNames[i]</span><span>@originalValue &rarr; @editedValue</span></li>
+                                        }
+                                    </ul>
+                                </details>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="demo-comparison-cards d-lg-none">
+            @foreach (var item in Model.Comparison)
+            {
+                var diff = item.ScoreDifferencePercentPoints;
+                var changeClass = diff switch
+                {
+                    > 0 => "demo-change-positive",
+                    < 0 => "demo-change-negative",
+                    0 => "demo-change-zero",
+                    _ => ""
+                };
+                <div class="demo-comparison-card mb-3">
+                    <div class="fw-semibold mb-1">@item.CauseName</div>
+                    <div class="small mb-2" style="color: var(--p-color);">@item.CategoryName</div>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>Score: @(item.OriginalScore.HasValue ? $"{Math.Round(item.OriginalScore.Value * 100, 1)}%" : "N/A") &rarr; @(item.EditedScore.HasValue ? $"{Math.Round(item.EditedScore.Value * 100, 1)}%" : "N/A")</span>
+                        <span class="@changeClass">@item.ScoreChangeLabel</span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-2">
+                        <span>Rank: @(item.OriginalRank?.ToString() ?? "N/A") &rarr; @(item.EditedRank?.ToString() ?? "N/A")</span>
+                        <span class="@changeClass">@item.RankChangeLabel</span>
+                    </div>
+                    <details>
+                        <summary>Show feature comparison</summary>
+                        <ul class="list-unstyled demo-feature-list mt-2">
+                            @for (int i = 0; i < comparisonFeatureNames.Length; i++)
+                            {
+                                var originalValue = item.OriginalFeatures != null ? item.OriginalFeatures[i].ToString("0.000") : "N/A";
+                                var editedValue = item.EditedFeatures != null ? item.EditedFeatures[i].ToString("0.000") : "N/A";
+                                <li><span>@comparisonFeatureNames[i]</span><span>@originalValue &rarr; @editedValue</span></li>
+                            }
+                        </ul>
+                    </details>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@if (Model.RankedCauses != null)
+{
+    if (Model.RankedCauses.Count == 0)
+    {
+        <p>No eligible causes found for this volunteer.</p>
+    }
+    else
+    {
+        <h4 class="mb-3" style="color: var(--secondary-color); font-weight: var(--font-weight-bold);">Top Recommended Causes</h4>
+        <div class="row">
+            @{
+                string[] featureNames =
+                [
+                    "Interest Match", "Category History Match", "Day Available Match", "Time Available Match",
+                    "Location Match", "Skill Match", "Experience Match", "Colleague Match"
+                ];
+            }
+            @foreach (var cause in Model.RankedCauses)
+            {
+                <div class="col-lg-4 col-md-6 col-12 mb-4">
+                    <div class="custom-block-wrap h-100 d-flex flex-column">
+
+                        <div class="demo-cause-image-wrap">
+                            <img src="@cause.ImagePath" class="custom-block-image img-fluid" alt="@cause.CauseName" />
+                            <span class="position-absolute top-0 end-0 m-2 demo-score-badge">
+                                @cause.MatchScorePercent% Match
+                            </span>
+                            <span class="position-absolute top-0 start-0 m-2 demo-rank-badge">
+                                Rank #@cause.Rank
+                            </span>
+                        </div>
+
+                        <div class="custom-block d-flex flex-column flex-grow-1">
+                            <div class="custom-block-body flex-grow-1">
+
+                                <div class="d-flex align-items-center mb-2 gap-2">
+                                    <span class="badge rounded-pill" style="background:var(--primary-color); font-size:0.75rem;">
+                                        @cause.CategoryName
+                                    </span>
+                                </div>
+
+                                <h5 class="mb-2">@cause.CauseName</h5>
+                                <p class="small mb-2" style="color: var(--p-color);">@cause.Description</p>
+
+                                <div class="d-flex flex-column gap-2 demo-meta-row mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-calendar3" style="color:var(--primary-color);"></i>
+                                        <span>@cause.StartDate.ToString("yyyy-MM-dd")</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-geo-alt-fill" style="color:var(--primary-color);"></i>
+                                        <span>@cause.Place</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-people-fill" style="color:var(--primary-color);"></i>
+                                        <span>@cause.RemainingPlaces open of @cause.MaxVolunteers</span>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                    <span class="demo-chip-static">@cause.DifficultyLabel</span>
+                                    @foreach (var skill in cause.RequiredSkills.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                                    {
+                                        <span class="demo-chip-static">@skill</span>
+                                    }
+                                </div>
+
+                                <details>
+                                    <summary>Show feature breakdown</summary>
+                                    <ul class="list-unstyled demo-feature-list mt-2">
+                                        @for (int i = 0; i < cause.Features.Length; i++)
+                                        {
+                                            <li><span>@featureNames[i]</span><span>@cause.Features[i].ToString("0.000")</span></li>
+                                        }
+                                    </ul>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}

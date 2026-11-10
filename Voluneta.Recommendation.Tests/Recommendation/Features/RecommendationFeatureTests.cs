@@ -1205,5 +1205,197 @@ namespace Voluneta.Recommendation.Tests.Recommendation.Features
             // Assert
             Assert.Equal(0.5, result.ColleagueMatch);
         }
+
+        [Fact]
+        public void Calculate_NullInput_ThrowsArgumentNullException()
+        {
+            // Act + Assert
+            Assert.Throws<ArgumentNullException>(() => RecommendationFeatureCalculator.Calculate(null!));
+        }
+
+        [Fact]
+        public void Calculate_ReturnsValuesInDocumentedOrder()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                VolunteerInterests = "Environment,Education",
+                CategoryName = "Environment",
+                CategoryId = 3,
+                CompletedCauses = new[] { new CompletedCause(3), new CompletedCause(2) },
+                DaysAvailable = "Monday,Wednesday",
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                PreferredTimeOfDay = "Morning",
+                UserLatitude = 42.0,
+                UserLongitude = 23.0,
+                CauseLatitude = 42.0,
+                CauseLongitude = 23.0,
+                UserSkills = "Teaching,Planning",
+                RequiredSkills = "Teaching,First Aid",
+                HasPreviousExperience = true,
+                DifficultyLevel = 2,
+                UserId = "user-1",
+                CompanyId = 7,
+                RegisteredParticipants = new[] { new ColleagueParticipant("user-2", 7) }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+            double[] values = result.ToArray();
+
+            // Assert
+            Assert.Equal(8, values.Length);
+            Assert.Equal(
+                new double[]
+                {
+                    result.InterestMatch,
+                    result.CategoryHistoryMatch,
+                    result.DayAvailableMatch,
+                    result.TimeAvailableMatch,
+                    result.LocationMatch,
+                    result.SkillMatch,
+                    result.ExperienceMatch,
+                    result.ColleagueMatch
+                },
+                values);
+        }
+
+        [Fact]
+        public void Calculate_CompleteRealisticInput_AllFeaturesFiniteAndInRange()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                VolunteerInterests = "Environment & Nature, Health & Elderly Care",
+                CategoryName = "Environmental Work",
+                CategoryId = 4,
+                CompletedCauses = new[] { new CompletedCause(4), new CompletedCause(4), new CompletedCause(2) },
+                DaysAvailable = "Tuesday,Thursday,Saturday",
+                CauseStart = new DateTime(2026, 11, 7, 15, 30, 0), // Saturday afternoon
+                PreferredTimeOfDay = "Afternoon (12:00-17:00)",
+                UserLatitude = 42.6977,
+                UserLongitude = 23.3219,
+                CauseLatitude = 42.7100,
+                CauseLongitude = 23.3300,
+                UserSkills = "Gardening, First Aid, Teamwork",
+                RequiredSkills = "Gardening, Teamwork",
+                HasPreviousExperience = true,
+                DifficultyLevel = 1,
+                UserId = "user-42",
+                CompanyId = 3,
+                RegisteredParticipants = new[]
+                {
+                    new ColleagueParticipant("user-43", 3),
+                    new ColleagueParticipant("user-44", 9)
+                }
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.All(result.ToArray(), value => Assert.True(double.IsFinite(value)));
+            Assert.All(result.ToArray(), value => Assert.InRange(value, 0.0, 1.0));
+        }
+
+        [Fact]
+        public void Calculate_MostlyMissingOptionalData_ReturnsNeutralDefaultsAndStaysInRange()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                CategoryId = 1,
+                CauseStart = new DateTime(2026, 10, 12, 10, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var result = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.All(result.ToArray(), value => Assert.True(double.IsFinite(value)));
+            Assert.All(result.ToArray(), value => Assert.InRange(value, 0.0, 1.0));
+            Assert.Equal(0.5, result.InterestMatch);
+            Assert.Equal(0.5, result.CategoryHistoryMatch);
+            Assert.Equal(0.5, result.DayAvailableMatch);
+            Assert.Equal(0.5, result.TimeAvailableMatch);
+            Assert.Equal(0.5, result.LocationMatch);
+            Assert.Equal(1.0, result.SkillMatch); // null RequiredSkills defaults to "no skills required"
+            Assert.Equal(1.0, result.ExperienceMatch); // difficulty 0 is fine for everyone
+            Assert.Equal(0.5, result.ColleagueMatch);
+        }
+
+        [Fact]
+        public void Calculate_DifferentInputs_ProduceExpectedFeatureChanges()
+        {
+            // Arrange
+            var baseInput = new RecommendationFeatureInput
+            {
+                VolunteerInterests = "Animals",
+                CategoryName = "Animals",
+                CategoryId = 2,
+                CauseStart = new DateTime(2026, 10, 12, 9, 0, 0), // Monday morning
+                DifficultyLevel = 0
+            };
+
+            var mismatchedInput = new RecommendationFeatureInput
+            {
+                VolunteerInterests = "Tourism",
+                CategoryName = "Animals",
+                CategoryId = 2,
+                CauseStart = new DateTime(2026, 10, 12, 9, 0, 0),
+                DifficultyLevel = 0
+            };
+
+            // Act
+            var baseResult = RecommendationFeatureCalculator.Calculate(baseInput);
+            var mismatchedResult = RecommendationFeatureCalculator.Calculate(mismatchedInput);
+
+            // Assert
+            Assert.Equal(1.0, baseResult.InterestMatch);
+            Assert.Equal(0.0, mismatchedResult.InterestMatch);
+
+            // changing VolunteerInterests/CategoryName must not affect unrelated features
+            Assert.Equal(baseResult.DayAvailableMatch, mismatchedResult.DayAvailableMatch);
+            Assert.Equal(baseResult.TimeAvailableMatch, mismatchedResult.TimeAvailableMatch);
+            Assert.Equal(baseResult.LocationMatch, mismatchedResult.LocationMatch);
+            Assert.Equal(baseResult.SkillMatch, mismatchedResult.SkillMatch);
+            Assert.Equal(baseResult.ExperienceMatch, mismatchedResult.ExperienceMatch);
+            Assert.Equal(baseResult.ColleagueMatch, mismatchedResult.ColleagueMatch);
+        }
+
+        [Fact]
+        public void Calculate_RepeatedCalculations_AreDeterministic()
+        {
+            // Arrange
+            var input = new RecommendationFeatureInput
+            {
+                VolunteerInterests = "Environment & Nature",
+                CategoryName = "Environmental Work",
+                CategoryId = 5,
+                CompletedCauses = new[] { new CompletedCause(5), new CompletedCause(1) },
+                DaysAvailable = "Monday,Friday",
+                CauseStart = new DateTime(2026, 10, 12, 18, 0, 0),
+                PreferredTimeOfDay = "Evening (17:00+)",
+                UserLatitude = 42.6977,
+                UserLongitude = 23.3219,
+                CauseLatitude = 42.1354,
+                CauseLongitude = 24.7453,
+                UserSkills = "Teaching",
+                RequiredSkills = "Teaching, First Aid",
+                HasPreviousExperience = false,
+                DifficultyLevel = 2,
+                UserId = "user-7",
+                CompanyId = 1,
+                RegisteredParticipants = new[] { new ColleagueParticipant("user-8", 1) }
+            };
+
+            // Act
+            var firstResult = RecommendationFeatureCalculator.Calculate(input);
+            var secondResult = RecommendationFeatureCalculator.Calculate(input);
+
+            // Assert
+            Assert.Equal(firstResult.ToArray(), secondResult.ToArray());
+        }
     }
 }

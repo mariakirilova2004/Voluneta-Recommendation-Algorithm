@@ -7,12 +7,16 @@
   <ItemGroup>
     <Compile Remove="Voluneta.Recommendation.Core\**" />
     <Compile Remove="Voluneta.Recommendation.Tests\**" />
+    <Compile Remove="Voluneta.Recommendation.ModelTraining\**" />
     <Content Remove="Voluneta.Recommendation.Core\**" />
     <Content Remove="Voluneta.Recommendation.Tests\**" />
+    <Content Remove="Voluneta.Recommendation.ModelTraining\**" />
     <EmbeddedResource Remove="Voluneta.Recommendation.Core\**" />
     <EmbeddedResource Remove="Voluneta.Recommendation.Tests\**" />
+    <EmbeddedResource Remove="Voluneta.Recommendation.ModelTraining\**" />
     <None Remove="Voluneta.Recommendation.Core\**" />
     <None Remove="Voluneta.Recommendation.Tests\**" />
+    <None Remove="Voluneta.Recommendation.ModelTraining\**" />
   </ItemGroup>
 
   <PropertyGroup>

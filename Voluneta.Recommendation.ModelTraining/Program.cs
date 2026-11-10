@@ -2,7 +2,26 @@
 using Voluneta.Recommendation.Core.Algorithms.Allocation.Integration;
 using Voluneta.Recommendation.Core.Algorithms.Allocation.Models;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
+using Voluneta.Recommendation.Core.Algorithms.Recommendation.Reporting;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
+
+// Reproducible evaluation: compares Mean Rating Baseline, Linear Score Baseline and the
+// Custom Neural Network across fixed seeds on synthetic data, and exports CSV/Markdown
+// artifacts into ExperimentResults/. Does not train or overwrite recommendation-model.json.
+if (args.Length > 0 && args[0] == "evaluate")
+{
+    string outputDirectory = Path.GetFullPath(args.Length > 1 ? args[1] : "ExperimentResults");
+
+    var (runs, summary) = NeuralEvaluationReportGenerator.GenerateAndSave(outputDirectory);
+
+    Console.WriteLine($"Evaluated {runs.Count} runs across {summary.Count} models.");
+    foreach (var model in summary)
+    {
+        Console.WriteLine($"{model.ModelName}: MeanMAE={model.MeanMAE:F4} (StdMAE={model.StdMAE:F4}), MeanRMSE={model.MeanRMSE:F4} (StdRMSE={model.StdRMSE:F4})");
+    }
+    Console.WriteLine($"Results written to: {outputDirectory}");
+    return;
+}
 
 // Predict using the saved model
 if (args.Length > 0 && args[0] == "predict")

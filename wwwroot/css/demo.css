@@ -1,0 +1,435 @@
+/* Minimal demo-specific styling layered on top of WeVolunteer's templatemo-kind-heart-charity.css */
+
+.demo-hero {
+    background: var(--secondary-color);
+    color: var(--white-color);
+    border-radius: var(--border-radius-large);
+    padding: 40px 32px;
+    margin-bottom: 32px;
+}
+
+.demo-hero h1 {
+    color: var(--white-color);
+}
+
+.demo-intro {
+    color: var(--p-color);
+}
+
+.demo-hero .demo-intro {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.demo-select-row {
+    background: var(--white-color);
+    border-radius: var(--border-radius-small);
+    box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .06);
+    padding: 20px 24px;
+}
+
+.demo-select-row .form-select {
+    border-radius: var(--border-radius-small);
+    border-color: var(--border-color);
+}
+
+.demo-panel-title {
+    font-size: 1.05rem;
+    font-weight: var(--font-weight-semibold);
+}
+
+.demo-field-label {
+    font-size: 0.8rem;
+    font-weight: var(--font-weight-semibold);
+    color: var(--secondary-color);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-bottom: 6px;
+    display: block;
+}
+
+/* Checkbox chips for Interests / Skills / Days Available */
+.demo-chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.demo-chip {
+    position: relative;
+}
+
+.demo-chip input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+}
+
+.demo-chip label {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--border-color);
+    background: var(--white-color);
+    color: var(--p-color);
+    font-size: 0.85rem;
+    font-weight: var(--font-weight-normal);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+}
+
+.demo-chip input[type="checkbox"]:checked + label {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white-color);
+    font-weight: var(--font-weight-semibold);
+}
+
+.demo-chip input[type="checkbox"]:focus-visible + label {
+    outline: 2px solid var(--secondary-color);
+    outline-offset: 2px;
+}
+
+.demo-rank-badge {
+    background: var(--secondary-color);
+    color: var(--white-color);
+    border-radius: var(--border-radius-large);
+    font-size: 0.75rem;
+    padding: 0.35em 0.75em;
+}
+
+.demo-score-badge {
+    background: var(--primary-color);
+    color: var(--white-color);
+    border-radius: var(--border-radius-large);
+    font-size: 0.75rem;
+    padding: 0.35em 0.75em;
+    font-weight: var(--font-weight-semibold);
+}
+
+.demo-feature-list {
+    font-size: 0.85rem;
+    color: var(--p-color);
+}
+
+.demo-feature-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.demo-feature-list li:last-child {
+    border-bottom: none;
+}
+
+.demo-meta-row {
+    font-size: 0.82rem;
+    color: var(--secondary-color);
+}
+
+.demo-cause-image-wrap {
+    position: relative;
+    height: 180px;
+    overflow: hidden;
+}
+
+.demo-cause-image-wrap img.custom-block-image {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+
+.demo-chip-static {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: var(--border-radius-small);
+    background: var(--section-bg-color);
+    color: var(--secondary-color);
+    font-size: 0.72rem;
+    font-weight: var(--font-weight-semibold);
+}
+
+details > summary {
+    cursor: pointer;
+    color: var(--secondary-color);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* Before vs After comparison section */
+.demo-comparison {
+    background: var(--white-color);
+    border-radius: var(--border-radius-small);
+    box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .06);
+    padding: 20px 24px;
+}
+
+.demo-comparison-note {
+    color: var(--p-color);
+}
+
+.demo-comparison-grid {
+    font-size: 0.88rem;
+    margin-bottom: 0;
+}
+
+.demo-comparison-grid th {
+    color: var(--secondary-color);
+    font-weight: var(--font-weight-semibold);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.demo-comparison-grid td {
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.demo-comparison-card {
+    background: var(--section-bg-color);
+    border-radius: var(--border-radius-small);
+    padding: 14px 16px;
+}
+
+.demo-change-positive {
+    color: #1f8a4c;
+    font-weight: var(--font-weight-semibold);
+}
+
+.demo-change-negative {
+    color: #c0392b;
+    font-weight: var(--font-weight-semibold);
+}
+
+.demo-change-zero {
+    color: var(--p-color);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* Scenario selector cards */
+.demo-scenario-card {
+    background: var(--white-color);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.demo-scenario-card:hover {
+    border-color: var(--primary-color);
+}
+
+.demo-scenario-card:focus-visible {
+    outline: 2px solid var(--secondary-color);
+    outline-offset: 2px;
+}
+
+.demo-scenario-card.active {
+    border-color: var(--primary-color);
+    background: var(--section-bg-color);
+}
+
+.demo-scenario-title {
+    font-weight: var(--font-weight-semibold);
+    color: var(--secondary-color);
+}
+
+.demo-scenario-badge {
+    font-size: 0.7rem;
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary-color);
+    white-space: nowrap;
+}
+
+.demo-scenario-description {
+    font-size: 0.82rem;
+    color: var(--p-color);
+}
+
+.demo-scenario-source {
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-semibold);
+    color: var(--secondary-color);
+}
+
+/* Interactive graph visualization */
+.demo-graph-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.demo-graph-toggle {
+    display: inline-flex;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-large);
+    overflow: hidden;
+    background: var(--section-bg-color);
+}
+
+.demo-graph-toggle button {
+    border: none;
+    background: transparent;
+    color: var(--secondary-color);
+    font-size: 0.85rem;
+    font-weight: var(--font-weight-semibold);
+    padding: 8px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.demo-graph-toggle button.active {
+    background: var(--primary-color);
+    color: var(--white-color);
+}
+
+.demo-graph-toggle button:focus-visible {
+    outline: 2px solid var(--secondary-color);
+    outline-offset: -2px;
+}
+
+.demo-graph-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 0.78rem;
+    color: var(--p-color);
+}
+
+.demo-graph-legend .legend-swatch {
+    display: inline-block;
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.demo-graph-wrap {
+    background: var(--section-bg-color);
+    border-radius: var(--border-radius-small);
+    padding: 16px;
+}
+
+.demo-graph-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.demo-graph-svg .node-label {
+    font-size: 11px;
+    font-weight: var(--font-weight-semibold);
+    fill: var(--secondary-color);
+}
+
+.demo-graph-svg .node-sublabel {
+    font-size: 9.5px;
+    fill: var(--p-color);
+}
+
+.demo-graph-svg .node-circle {
+    fill: var(--white-color);
+    stroke: var(--border-color);
+    stroke-width: 1.5;
+}
+
+.demo-graph-svg .node-circle.cause {
+    stroke: var(--primary-color);
+}
+
+.demo-graph-svg .graph-edge {
+    fill: none;
+    stroke: var(--border-color);
+    stroke-width: 1.5;
+    opacity: 0.45;
+    cursor: pointer;
+    transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
+}
+
+.demo-graph-svg .graph-edge.below-threshold {
+    stroke-dasharray: 3 4;
+    opacity: 0.3;
+}
+
+.demo-graph-svg .graph-edge.priority {
+    stroke: var(--primary-color);
+    stroke-width: 3;
+    opacity: 1;
+}
+
+.demo-graph-svg .graph-edge:hover,
+.demo-graph-svg .graph-edge:focus,
+.demo-graph-svg .graph-edge.is-active {
+    stroke: var(--secondary-color);
+    stroke-width: 3.5;
+    opacity: 1;
+    outline: none;
+}
+
+.demo-graph-svg .graph-edge:focus-visible {
+    stroke-width: 4;
+}
+
+.demo-graph-details {
+    margin-top: 14px;
+    background: var(--white-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    min-height: 54px;
+}
+
+.demo-graph-details .detail-title {
+    font-weight: var(--font-weight-semibold);
+    color: var(--secondary-color);
+}
+
+.demo-graph-details .detail-status {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 0.78rem;
+    font-weight: var(--font-weight-semibold);
+    color: var(--p-color);
+}
+
+.demo-graph-connection-cards {
+    display: none;
+}
+
+@media (max-width: 767.98px) {
+    .demo-graph-svg-wrap {
+        display: none;
+    }
+
+    .demo-graph-connection-cards {
+        display: block;
+    }
+}
+
+.demo-graph-connection-card {
+    background: var(--white-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+}
+
+.demo-graph-connection-card.priority {
+    border-color: var(--primary-color);
+    border-width: 2px;
+}
+
+.demo-graph-connection-card.below-threshold {
+    opacity: 0.6;
+}
