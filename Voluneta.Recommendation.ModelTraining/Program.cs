@@ -1,6 +1,7 @@
 ﻿using Recommendation.Core.Algorithms.Recommendation.Features;
 using Voluneta.Recommendation.Core.Algorithms.Allocation.Integration;
 using Voluneta.Recommendation.Core.Algorithms.Allocation.Models;
+using Voluneta.Recommendation.Core.Algorithms.Allocation.Reporting;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.NeuralNetwork;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Reporting;
 using Voluneta.Recommendation.Core.Algorithms.Recommendation.Training;
@@ -20,6 +21,44 @@ if (args.Length > 0 && args[0] == "evaluate")
         Console.WriteLine($"{model.ModelName}: MeanMAE={model.MeanMAE:F4} (StdMAE={model.StdMAE:F4}), MeanRMSE={model.MeanRMSE:F4} (StdRMSE={model.StdRMSE:F4})");
     }
     Console.WriteLine($"Results written to: {outputDirectory}");
+    return;
+}
+
+// Reproducible evaluation: compares MinCostMaxFlowPriorityAllocator and GreedyPriorityAllocator
+// (Algorithm 2) on identical constructed candidate/capacity/threshold scenarios, and exports
+// CSV/Markdown artifacts into ExperimentResults/. Does not modify either allocator.
+if (args.Length > 0 && args[0] == "allocation-evaluate")
+{
+    string allocationOutputDirectory = Path.GetFullPath(args.Length > 1 ? args[1] : "ExperimentResults");
+
+    var (scenarios, rows) = AllocationEvaluationReportGenerator.GenerateAndSave(allocationOutputDirectory);
+
+    Console.WriteLine($"Evaluated {scenarios.Count} scenarios across {AllocationEvaluationRunner.Thresholds.Length} thresholds ({rows.Count} rows).");
+    foreach (var row in rows)
+    {
+        Console.WriteLine($"{row.ScenarioName} | threshold={row.Threshold:F2} | {row.AlgorithmName}: count={row.PrioritizedVolunteerCount}, total={row.TotalCompatibilityScore:F4}, avg={row.AverageSelectedCompatibilityScore:F4}, util={row.CapacityUtilization:F4}");
+    }
+    Console.WriteLine($"Results written to: {allocationOutputDirectory}");
+    return;
+}
+
+// Reproducible performance benchmark: measures MinCostMaxFlowPriorityAllocator and
+// GreedyPriorityAllocator (Algorithm 2) on deterministic synthetic candidate pools of
+// increasing size, using Stopwatch with a warm-up run and 5 measured repetitions per
+// scenario/algorithm. Exports CSV/Markdown artifacts into ExperimentResults/. Does not
+// modify either allocator.
+if (args.Length > 0 && args[0] == "allocation-benchmark")
+{
+    string benchmarkOutputDirectory = Path.GetFullPath(args.Length > 1 ? args[1] : "ExperimentResults");
+
+    var (scenarios, rows) = AllocationPerformanceReportGenerator.GenerateAndSave(benchmarkOutputDirectory);
+
+    Console.WriteLine($"Benchmarked {scenarios.Count} scenarios across 2 algorithms ({rows.Count} rows).");
+    foreach (var row in rows)
+    {
+        Console.WriteLine($"{row.ScenarioName} | {row.AlgorithmName}: edges={row.CandidateEdgeCount}, median={row.MedianMilliseconds:F4}ms, mean={row.MeanMilliseconds:F4}ms, min={row.MinMilliseconds:F4}ms, prioritized={row.PrioritizedVolunteerCount}");
+    }
+    Console.WriteLine($"Results written to: {benchmarkOutputDirectory}");
     return;
 }
 

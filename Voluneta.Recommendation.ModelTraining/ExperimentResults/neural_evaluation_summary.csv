@@ -1,0 +1,4 @@
+model,runs,mean_mae,std_mae,mean_rmse,std_rmse,mean_mae_rating_scale,mean_rmse_rating_scale
+Mean Rating Baseline,5,0.122850,0.006907,0.151058,0.010597,1.105646,1.359524
+Linear Score Baseline,5,0.041209,0.001893,0.051255,0.001908,0.370883,0.461297
+Neural Network,5,0.040784,0.002638,0.050095,0.002740,0.367053,0.450856

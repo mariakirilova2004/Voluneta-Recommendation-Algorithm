@@ -1,0 +1,9 @@
+scenario,seed,volunteer_count,cause_count,candidate_edge_count,threshold,algorithm,repetitions,median_ms,mean_ms,min_ms,prioritized_count
+Small (10 volunteers x 5 causes),11,10,5,27,0.50,Min-Cost Max-Flow,5,0.1793,0.2782,0.1768,5
+Small (10 volunteers x 5 causes),11,10,5,27,0.50,Greedy,5,0.0312,0.0358,0.0255,4
+Medium (25 volunteers x 10 causes),22,25,10,106,0.50,Min-Cost Max-Flow,5,3.6136,6.0704,2.3346,22
+Medium (25 volunteers x 10 causes),22,25,10,106,0.50,Greedy,5,0.1209,0.1588,0.1161,17
+Large (50 volunteers x 15 causes),33,50,15,287,0.50,Min-Cost Max-Flow,5,5.0294,5.4563,4.7761,41
+Large (50 volunteers x 15 causes),33,50,15,287,0.50,Greedy,5,0.1774,0.1772,0.1721,35
+Extra Large (100 volunteers x 20 causes),44,100,20,685,0.50,Min-Cost Max-Flow,5,13.0887,13.2411,10.3807,77
+Extra Large (100 volunteers x 20 causes),44,100,20,685,0.50,Greedy,5,0.4043,0.4047,0.3914,72
